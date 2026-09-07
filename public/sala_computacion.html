@@ -362,6 +362,17 @@
           Exportar
         </button>
 
+        <!-- Botón Importar desde Excel (Exclusivo Administrador) -->
+        <button id="btn-import-excel" class="btn-secondary admin-only-btn"
+          title="Importar planillas y reservas desde Excel (.xlsx)" style="display:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+          Importar
+        </button>
+
         <!-- Botón Gestión de Docentes (Exclusivo Administrador) -->
         <button id="btn-manage-users" class="btn-secondary admin-only-btn"
           title="Gestión de Cuentas y Docentes" style="display:none;">
@@ -834,6 +845,149 @@
             <button type="submit" class="btn-primary" id="user-action-submit">Aplicar Cambio</button>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       MODAL: IMPORTAR PLANILLA EXCEL (.XLSX) (ADMINISTRADOR)
+  ═══════════════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="import-excel-overlay" role="dialog" aria-modal="true" aria-labelledby="import-excel-title">
+    <div class="modal modal-lg" id="import-excel-modal" style="max-width: 800px; width: 95%;">
+      <div class="modal-header">
+        <div class="modal-icon" style="background:rgba(16,185,129,0.12); color:#10B981; border-color:rgba(16,185,129,0.25);">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="8" y1="13" x2="16" y2="13" />
+            <line x1="8" y1="17" x2="16" y2="17" />
+            <polyline points="10 9 9 9 8 9" />
+          </svg>
+        </div>
+        <div>
+          <h2 id="import-excel-title" style="color:var(--primary); margin:0; font-size:1.2rem;">Importar Planilla Excel (.xlsx)</h2>
+          <span style="font-size:0.8rem; color:var(--text-muted);">Carga masiva de horarios y reservas al calendario institucional</span>
+        </div>
+        <button class="modal-close" id="import-excel-close" aria-label="Cerrar">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding-top:16px;">
+        <!-- Configuración de Mes y Modo de Carga -->
+        <div class="import-config-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:16px;">
+          <div>
+            <label style="display:block; font-size:0.84rem; font-weight:600; margin-bottom:6px; color:var(--text-primary);">
+              Mes de destino:
+            </label>
+            <div style="display:flex; gap:8px;">
+              <select id="import-month-select" class="month-select" style="flex:2; height:38px;">
+                <option value="01">Enero</option>
+                <option value="02">Febrero</option>
+                <option value="03">Marzo</option>
+                <option value="04">Abril</option>
+                <option value="05">Mayo</option>
+                <option value="06">Junio</option>
+                <option value="07">Julio</option>
+                <option value="08">Agosto</option>
+                <option value="09">Septiembre</option>
+                <option value="10">Octubre</option>
+                <option value="11">Noviembre</option>
+                <option value="12">Diciembre</option>
+              </select>
+              <select id="import-year-select" class="month-select" style="flex:1; height:38px;">
+                <option value="2025">2025</option>
+                <option value="2026">2026</option>
+                <option value="2027">2027</option>
+                <option value="2028">2028</option>
+                <option value="2029">2029</option>
+                <option value="2030">2030</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label style="display:block; font-size:0.84rem; font-weight:600; margin-bottom:6px; color:var(--text-primary);">
+              Modo de sincronización:
+            </label>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <label style="font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                <input type="radio" name="import-mode" value="merge" checked />
+                <span>Combinar / Actualizar <small style="color:var(--text-muted); font-weight:normal;">(Conserva existentes)</small></span>
+              </label>
+              <label style="font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                <input type="radio" name="import-mode" value="replace" />
+                <span style="color:#DC2626;">Reemplazar mes completo <small style="color:var(--text-muted); font-weight:normal;">(Limpia y carga)</small></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Banner de Descarga de Plantilla Modelo -->
+        <div class="template-download-banner" style="display:flex; align-items:center; justify-content:space-between; background:rgba(212,175,55,0.08); border:1px dashed #D4AF37; padding:10px 14px; border-radius:8px; margin-bottom:16px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#B38F1B" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span style="font-size:0.82rem; color:var(--text-primary);">
+              ¿No tienes una planilla? Descarga el modelo oficial con todas las semanas y bloques listos para llenar.
+            </span>
+          </div>
+          <button type="button" id="btn-download-template" class="btn-secondary" style="border-color:#D4AF37; color:#B38F1B; font-size:0.78rem; padding:6px 12px; white-space:nowrap;">
+            Descargar Plantilla (.xlsx)
+          </button>
+        </div>
+
+        <!-- Zona de Carga / Drag & Drop -->
+        <div class="excel-dropzone" id="excel-dropzone" style="border:2px dashed var(--border-light); border-radius:10px; padding:30px; text-align:center; cursor:pointer; transition:all 0.2s; background:var(--bg-surface-2);">
+          <input type="file" id="excel-file-input" accept=".xlsx, .xls" style="display:none;" />
+          <svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--primary); margin-bottom:8px;">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+          <p style="font-size:0.92rem; font-weight:600; color:var(--text-primary); margin:0 0 4px 0;" id="dropzone-text">
+            Arrastra tu archivo .xlsx aquí o <span style="color:var(--primary); text-decoration:underline;">haz clic para seleccionarlo</span>
+          </p>
+          <span style="font-size:0.76rem; color:var(--text-muted);" id="dropzone-subtext">
+            Soporta planillas exportadas del sistema o nóminas con formato institucional
+          </span>
+        </div>
+
+        <!-- Área de Vista Previa -->
+        <div id="import-preview-area" style="display:none; margin-top:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-size:0.85rem; font-weight:700; color:var(--text-primary);" id="preview-count-label">
+              ✓ 0 reservas detectadas
+            </span>
+            <span style="font-size:0.76rem; color:var(--text-muted);" id="preview-sheets-label">
+              0 hojas leídas
+            </span>
+          </div>
+          <div class="import-preview-table-wrapper" style="max-height:180px; overflow-y:auto; border:1px solid var(--border-light); border-radius:8px;">
+            <table class="preview-table" style="width:100%; border-collapse:collapse; font-size:0.78rem;">
+              <thead style="background:var(--bg-surface-2); position:sticky; top:0;">
+                <tr style="text-align:left; color:var(--text-secondary); border-bottom:1px solid var(--border-light);">
+                  <th style="padding:6px 10px;">Semana</th>
+                  <th style="padding:6px 10px;">Día</th>
+                  <th style="padding:6px 10px;">Bloque</th>
+                  <th style="padding:6px 10px;">Docente</th>
+                  <th style="padding:6px 10px;">Curso</th>
+                </tr>
+              </thead>
+              <tbody id="preview-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="import-error" class="form-error" style="margin-top:12px;" role="alert"></div>
+
+        <div class="form-actions" style="margin-top:20px;">
+          <button type="button" class="btn-secondary" id="import-cancel-btn">Cancelar</button>
+          <button type="button" class="btn-primary" id="import-submit-btn" disabled>
+            Confirmar e Importar al Calendario
+          </button>
+        </div>
       </div>
     </div>
   </div>

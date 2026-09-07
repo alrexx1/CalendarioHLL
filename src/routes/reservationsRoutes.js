@@ -8,7 +8,7 @@
 const express = require('express');
 const router = express.Router();
 const reservationsController = require('../controllers/reservationsController');
-const { optionalAuth } = require('../middleware/authMiddleware');
+const { optionalAuth, requireAdmin } = require('../middleware/authMiddleware');
 
 router.use(optionalAuth);
 
@@ -20,5 +20,8 @@ router.post('/', reservationsController.createOrUpdateReserva);
 
 // Eliminar reserva o desbloquear
 router.delete('/', reservationsController.deleteReserva);
+
+// Importación masiva desde planilla Excel (Exclusivo Administrador)
+router.post('/batch-import', requireAdmin, reservationsController.batchImportReservas);
 
 module.exports = router;

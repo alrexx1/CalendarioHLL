@@ -150,6 +150,13 @@ const API = {
     });
   },
 
+  batchImportReservas(payload) {
+    return this.request('/api/reservas/batch-import', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
   // Monitoreo de salud
   checkHealth() {
     return this.request('/api/health');

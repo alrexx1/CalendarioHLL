@@ -232,8 +232,104 @@ async function deleteReserva(req, res) {
   }
 }
 
+/**
+ * Importación masiva de reservas desde planilla Excel (Exclusivo Administrador)
+ */
+async function batchImportReservas(req, res) {
+  try {
+    const { yearMonth, mode, reservations } = req.body;
+
+    if (!yearMonth || !Array.isArray(reservations)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Datos insuficientes. Se requiere el mes (yearMonth) y las reservas a importar.'
+      });
+    }
+
+    const pool = db.getPool();
+    if (!pool || !db.isNeonConnected()) {
+      return res.status(500).json({
+        success: false,
+        message: 'Base de datos no disponible.'
+      });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Si el modo es 'replace', limpiamos el mes especificado antes de cargar
+      if (mode === 'replace') {
+        await client.query('DELETE FROM reservas WHERE year_month = $1;', [yearMonth]);
+      }
+
+      let count = 0;
+      for (const item of reservations) {
+        const { weekIdx, day, slot, docente, curso, nota, isBlocked, userEmail } = item;
+
+        if (weekIdx === undefined || !day || !slot) continue;
+        if (!docente && !curso && !isBlocked) continue; // omitir vacíos
+
+        const normalizedDay = day.toLowerCase().trim();
+        const effectiveDocente = (docente || (isBlocked ? '🔒 ADMIN' : '')).trim();
+        const effectiveCurso = (curso || (isBlocked ? 'Bloqueo Institucional' : '')).trim();
+        const effectiveEmail = (userEmail || req.user?.email || '').toLowerCase().trim();
+
+        const query = `
+          INSERT INTO reservas (year_month, week_idx, day, slot, docente, curso, nota, is_blocked, user_email, updated_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
+          ON CONFLICT (year_month, week_idx, day, slot)
+          DO UPDATE SET
+            docente = EXCLUDED.docente,
+            curso = EXCLUDED.curso,
+            nota = EXCLUDED.nota,
+            is_blocked = EXCLUDED.is_blocked,
+            user_email = EXCLUDED.user_email,
+            updated_at = CURRENT_TIMESTAMP;
+        `;
+
+        await client.query(query, [
+          yearMonth,
+          parseInt(weekIdx, 10),
+          normalizedDay,
+          slot.trim(),
+          effectiveDocente,
+          effectiveCurso,
+          (nota || '').trim(),
+          Boolean(isBlocked),
+          effectiveEmail
+        ]);
+        count++;
+      }
+
+      await client.query('COMMIT');
+
+      console.log(`📥 [Importación Excel] ${count} reservas procesadas para ${yearMonth} (modo: ${mode || 'merge'}) por ${req.user?.email}`);
+
+      return res.json({
+        success: true,
+        message: `Planilla procesada con éxito. Se importaron ${count} reservas para el mes ${yearMonth}.`,
+        count,
+        yearMonth
+      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('Error en batchImportReservas:', err.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Error interno al importar reservas desde Excel.'
+    });
+  }
+}
+
 module.exports = {
   getMonthReservas,
   createOrUpdateReserva,
-  deleteReserva
+  deleteReserva,
+  batchImportReservas
 };

@@ -1184,3 +1184,68 @@ select:not(.month-select):focus {
   }
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   MODAL DE IMPORTACIÓN DE PLANILLAS EXCEL (.XLSX)
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.excel-dropzone {
+  border: 2px dashed var(--border-light, #CBD5E1);
+  border-radius: 10px;
+  padding: 28px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: var(--bg-surface-2, #F8FAFC);
+}
+
+.excel-dropzone:hover {
+  border-color: var(--primary, #0B2545);
+  background: rgba(11, 37, 69, 0.04);
+}
+
+.excel-dropzone svg {
+  transition: transform 0.2s ease;
+}
+
+.excel-dropzone:hover svg {
+  transform: translateY(-2px);
+}
+
+.template-download-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(212, 175, 55, 0.08);
+  border: 1px dashed #D4AF37;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .import-config-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .template-download-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .template-download-banner button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+.preview-table th {
+  font-weight: 700;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.preview-table tr:hover td {
+  background: rgba(11, 37, 69, 0.02);
+}
+
+
