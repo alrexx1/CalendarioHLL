@@ -33,6 +33,10 @@ app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 app.use(express.static(__dirname, { index: false }));
 
 // Rutas de Vistas Principales (Consolidación)
+app.get('/favicon.ico', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'favicon.ico'));
+});
+
 app.get(['/', '/index.html', '/sala_computacion.html'], (req, res) => {
   const publicPath = path.join(__dirname, 'public', 'sala_computacion.html');
   res.sendFile(publicPath);
