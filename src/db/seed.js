@@ -20,8 +20,8 @@ async function seedInitialData() {
       `SELECT id, email, must_change_password FROM users WHERE role = 'administrator' LIMIT 1;`
     );
 
-    if (adminCheck.rows.length === 0) {
-      console.log('🌱 [Neon DB] Creando Administrador inicial por defecto...');
+    if (adminCheck.rows.length === 0 && DEFAULT_ADMIN.email && DEFAULT_ADMIN.initialPassword) {
+      console.log('🌱 [Neon DB] Creando Administrador inicial configurado en variables de entorno...');
       const passwordHash = hashPassword(DEFAULT_ADMIN.initialPassword);
 
       await client.query(`
@@ -38,9 +38,8 @@ async function seedInitialData() {
 
       console.log(`
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║ 🔑 ADMINISTRADOR INICIAL GENERADO (Neon DB)                                   ║
+║ 🔑 ADMINISTRADOR INICIAL REGISTRADO (Neon DB)                                 ║
 ║ • Correo:      ${DEFAULT_ADMIN.email}                                         ║
-║ • Clave Temp:  ${DEFAULT_ADMIN.initialPassword}                               ║
 ║ • Estado:      Cambio obligatorio de contraseña requerido en el 1er acceso   ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
       `);

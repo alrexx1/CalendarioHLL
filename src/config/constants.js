@@ -31,9 +31,9 @@ const DAY_NAMES = {
 };
 
 const DEFAULT_ADMIN = {
-  email: process.env.INITIAL_ADMIN_EMAIL || 'admin@colegiohll.cl',
-  initialPassword: process.env.INITIAL_ADMIN_PASSWORD || 'ColegioHLL2026!',
-  name: 'Administrador HLL',
+  email: process.env.INITIAL_ADMIN_EMAIL || '',
+  initialPassword: process.env.INITIAL_ADMIN_PASSWORD || '',
+  name: process.env.INITIAL_ADMIN_NAME || 'Administrador HLL',
   role: 'administrator'
 };
 
