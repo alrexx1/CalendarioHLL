@@ -137,6 +137,7 @@ const Reservations = {
 
   async deleteReservation(weekIdx, day, slot) {
     const ym = Calendar.currentYearMonth;
+    const currentResv = Calendar.activeWeeks[weekIdx]?.reservations?.[day]?.[slot] || {};
 
     if (Calendar.activeWeeks[weekIdx]?.reservations[day]) {
       delete Calendar.activeWeeks[weekIdx].reservations[day][slot];
@@ -149,7 +150,16 @@ const Reservations = {
     Calendar.render();
 
     try {
-      await API.deleteReserva({ yearMonth: ym, weekIdx, day, slot });
+      await API.deleteReserva({
+        yearMonth: ym,
+        weekIdx,
+        day,
+        slot,
+        docente: currentResv.docente,
+        curso: currentResv.curso,
+        nota: currentResv.nota,
+        userEmail: currentResv.userEmail
+      });
       showToast('Reserva o bloqueo eliminado');
     } catch (err) {
       console.warn('Error eliminando en servidor:', err.message);

@@ -92,15 +92,57 @@ function getEmailTemplate({ title, badgeColor, badgeText, contentHtml }) {
 }
 
 /**
+ * Obtiene la lista de correos de los administradores del sistema:
+ * 1. Consulta la base de datos Neon para obtener todos los usuarios con rol 'administrator' (ej: rtorres@colegiohll.cl).
+ * 2. Incorpora los correos definidos en la variable de entorno ADMIN_NOTIFICATION_EMAIL.
+ * 3. Si no hay ninguno configurado, recurre al usuario SMTP como respaldo.
+ */
+async function getAdminRecipients() {
+  const recipients = new Set();
+
+  // 1. Variable de entorno ADMIN_NOTIFICATION_EMAIL (permite lista separada por comas)
+  if (process.env.ADMIN_NOTIFICATION_EMAIL) {
+    process.env.ADMIN_NOTIFICATION_EMAIL.split(',').forEach(e => {
+      const clean = e.trim().toLowerCase();
+      if (clean && clean.includes('@')) recipients.add(clean);
+    });
+  }
+
+  // 2. Base de datos Neon (usuarios con rol 'administrator')
+  try {
+    const db = require('../db');
+    const pool = db.getPool();
+    if (pool) {
+      const res = await pool.query(
+        `SELECT email FROM users WHERE role = 'administrator' AND email IS NOT NULL;`
+      );
+      res.rows.forEach(r => {
+        const clean = r.email?.trim().toLowerCase();
+        if (clean && clean.includes('@')) recipients.add(clean);
+      });
+    }
+  } catch (err) {
+    console.warn('⚠️ [Email] Error consultando administradores en BD:', err.message);
+  }
+
+  // 3. Respaldo a SMTP_USER si no hay destinatarios
+  if (recipients.size === 0 && smtpUser) {
+    recipients.add(smtpUser.toLowerCase());
+  }
+
+  return Array.from(recipients);
+}
+
+/**
  * Enviar notificación al Administrador y comprobante al Docente cuando una reserva se cancela/anula
  */
 async function sendReservationCancelledNotification({ reservation, day, slot, weekIdx, yearMonth, cancelledBy }) {
   if (!transporter) return;
 
   const dayName = DAY_NAMES[day] || day;
-  const teacherEmail = reservation.userEmail?.trim();
+  const teacherEmail = reservation?.userEmail?.trim()?.toLowerCase();
 
-  // 1. Comprobante de Cancelación al Docente
+  // 1. Comprobante Oficial de Cancelación al Docente (si tenía correo registrado)
   if (teacherEmail && teacherEmail.includes('@')) {
     const teacherContent = `
       <p style="font-size:15px; color:#334155; margin: 0 0 16px; line-height:1.6;">
@@ -160,59 +202,65 @@ async function sendReservationCancelledNotification({ reservation, day, slot, we
     }
   }
 
-  // 2. Alerta Administrativa al Administrador (si es diferente al docente)
-  if (adminEmail && adminEmail !== teacherEmail) {
-    const adminContent = `
-      <p style="font-size:14px; color:#475569; margin: 0 0 16px; line-height:1.5;">
-        Se ha <b>cancelado una reserva</b> y el bloque horario correspondiente ha quedado <b>disponible</b> en la Sala de Computación.
-      </p>
-      <table class="data-table">
-        <tr>
-          <td class="label">Docente</td>
-          <td class="value">${reservation.docente || 'No especificado'}</td>
-        </tr>
-        <tr>
-          <td class="label">Curso / Actividad</td>
-          <td class="value">${reservation.curso || 'No especificado'}</td>
-        </tr>
-        <tr>
-          <td class="label">Día</td>
-          <td class="value">${dayName}</td>
-        </tr>
-        <tr>
-          <td class="label">Bloque Horario</td>
-          <td class="value">${slot}</td>
-        </tr>
-        <tr>
-          <td class="label">Semana</td>
-          <td class="value">Semana ${parseInt(weekIdx, 10) + 1} (${yearMonth})</td>
-        </tr>
-        ${reservation.nota ? `<tr><td class="label">Nota previa</td><td class="value">${reservation.nota}</td></tr>` : ''}
-        ${teacherEmail ? `<tr><td class="label">Correo Docente</td><td class="value">${teacherEmail}</td></tr>` : ''}
-        <tr>
-          <td class="label">Cancelado por</td>
-          <td class="value" style="color:#DC2626;">${cancelledBy || 'Usuario del sistema'}</td>
-        </tr>
-      </table>
-    `;
+  // 2. Alerta Administrativa a TODOS los Administradores (incluye rtorres@colegiohll.cl)
+  const adminRecipients = await getAdminRecipients();
+  const adminContent = `
+    <p style="font-size:14px; color:#475569; margin: 0 0 16px; line-height:1.5;">
+      Se ha <b>cancelado una reserva</b> y el bloque horario correspondiente ha quedado <b>disponible</b> en la Sala de Computación.
+    </p>
+    <table class="data-table">
+      <tr>
+        <td class="label">Docente</td>
+        <td class="value">${reservation.docente || 'No especificado'}</td>
+      </tr>
+      <tr>
+        <td class="label">Curso / Actividad</td>
+        <td class="value">${reservation.curso || 'No especificado'}</td>
+      </tr>
+      <tr>
+        <td class="label">Día</td>
+        <td class="value">${dayName}</td>
+      </tr>
+      <tr>
+        <td class="label">Bloque Horario</td>
+        <td class="value">${slot}</td>
+      </tr>
+      <tr>
+        <td class="label">Semana</td>
+        <td class="value">Semana ${parseInt(weekIdx, 10) + 1} (${yearMonth})</td>
+      </tr>
+      ${reservation.nota ? `<tr><td class="label">Nota previa</td><td class="value">${reservation.nota}</td></tr>` : ''}
+      ${teacherEmail ? `<tr><td class="label">Correo Docente</td><td class="value">${teacherEmail}</td></tr>` : ''}
+      <tr>
+        <td class="label">Cancelado por</td>
+        <td class="value" style="color:#DC2626;">${cancelledBy || 'Usuario del sistema'}</td>
+      </tr>
+    </table>
+  `;
 
-    const adminHtml = getEmailTemplate({
-      title: 'Horario Cancelado / Liberado',
-      badgeColor: '#DC2626',
-      badgeText: '⚠️ Cancelación Registrada',
-      contentHtml: adminContent
-    });
+  const adminHtml = getEmailTemplate({
+    title: 'Horario Cancelado / Liberado',
+    badgeColor: '#DC2626',
+    badgeText: '⚠️ Cancelación Registrada',
+    contentHtml: adminContent
+  });
+
+  for (const adminTo of adminRecipients) {
+    if (adminTo === teacherEmail) {
+      // Si este administrador ya recibió el comprobante de cancelación arriba, omitir duplicado
+      continue;
+    }
 
     try {
       await transporter.sendMail({
         from: `"Sistema Reservas HLL" <${smtpUser}>`,
-        to: adminEmail,
+        to: adminTo,
         subject: `[Colegio HLL] ⚠️ Aviso Administrador: Cancelación — ${dayName} ${slot}`,
         html: adminHtml
       });
-      console.log(`✉️ [Email] Notificación de cancelación enviada al administrador: ${adminEmail}`);
+      console.log(`✉️ [Email] Notificación de cancelación enviada al administrador: ${adminTo}`);
     } catch (err) {
-      console.error('❌ [Email] Error al enviar notificación de cancelación al admin:', err.message);
+      console.error(`❌ [Email] Error al enviar notificación de cancelación al admin (${adminTo}):`, err.message);
     }
   }
 }
@@ -224,8 +272,8 @@ async function sendReservationCreatedNotification({ reservation, day, slot, week
   if (!transporter) return;
 
   const dayName = DAY_NAMES[day] || day;
-  const isBlocked = Boolean(reservation.isBlocked);
-  const teacherEmail = reservation.userEmail?.trim();
+  const isBlocked = Boolean(reservation?.isBlocked);
+  const teacherEmail = reservation?.userEmail?.trim()?.toLowerCase();
 
   // 1. Enviar COMPROBANTE OFICIAL AL DOCENTE (si hay correo y no es bloqueo técnico)
   if (teacherEmail && teacherEmail.includes('@') && !isBlocked) {
@@ -289,64 +337,69 @@ async function sendReservationCreatedNotification({ reservation, day, slot, week
     }
   }
 
-  // 2. Enviar NOTIFICACIÓN ADMINISTRATIVA AL ADMINISTRADOR
-  // (Si el correo del admin es diferente al del profesor, o si es un bloqueo institucional)
-  if (adminEmail && (adminEmail !== teacherEmail || isBlocked)) {
-    const adminSubject = isBlocked
-      ? `[Colegio HLL] 🔒 Bloqueo de Horario — ${dayName} ${slot}`
-      : `[Colegio HLL] 📌 Nueva Reserva Agendada — ${reservation.docente} (${dayName} ${slot})`;
+  // 2. Enviar NOTIFICACIÓN ADMINISTRATIVA A TODOS LOS ADMINISTRADORES (incluye rtorres@colegiohll.cl)
+  const adminRecipients = await getAdminRecipients();
+  const adminSubject = isBlocked
+    ? `[Colegio HLL] 🔒 Bloqueo de Horario — ${dayName} ${slot}`
+    : `[Colegio HLL] 📌 Nueva Reserva Agendada — ${reservation.docente} (${dayName} ${slot})`;
 
-    const adminContent = `
-      <p style="font-size:14px; color:#475569; margin: 0 0 16px; line-height:1.5;">
-        ${isBlocked ? 'Se ha registrado un <b>bloqueo institucional</b> de horario.' : 'Se ha registrado una <b>nueva reserva</b> en la Sala de Computación.'}
-      </p>
-      <table class="data-table">
-        <tr>
-          <td class="label">${isBlocked ? 'Estado' : 'Docente'}</td>
-          <td class="value">${reservation.docente}</td>
-        </tr>
-        <tr>
-          <td class="label">${isBlocked ? 'Motivo' : 'Curso / Asignatura'}</td>
-          <td class="value">${reservation.curso}</td>
-        </tr>
-        <tr>
-          <td class="label">Día</td>
-          <td class="value">${dayName}</td>
-        </tr>
-        <tr>
-          <td class="label">Bloque Horario</td>
-          <td class="value">${slot}</td>
-        </tr>
-        <tr>
-          <td class="label">Semana</td>
-          <td class="value">Semana ${parseInt(weekIdx, 10) + 1} (${yearMonth})</td>
-        </tr>
-        ${reservation.nota ? `<tr><td class="label">Observación</td><td class="value">${reservation.nota}</td></tr>` : ''}
-        ${teacherEmail ? `<tr><td class="label">Correo Docente</td><td class="value">${teacherEmail}</td></tr>` : ''}
-        <tr>
-          <td class="label">Registrado por</td>
-          <td class="value" style="color:#059669;">${createdBy || reservation.docente}</td>
-        </tr>
-      </table>
-    `;
+  const adminContent = `
+    <p style="font-size:14px; color:#475569; margin: 0 0 16px; line-height:1.5;">
+      ${isBlocked ? 'Se ha registrado un <b>bloqueo institucional</b> de horario.' : 'Se ha registrado una <b>nueva reserva</b> en la Sala de Computación.'}
+    </p>
+    <table class="data-table">
+      <tr>
+        <td class="label">${isBlocked ? 'Estado' : 'Docente'}</td>
+        <td class="value">${reservation.docente}</td>
+      </tr>
+      <tr>
+        <td class="label">${isBlocked ? 'Motivo' : 'Curso / Asignatura'}</td>
+        <td class="value">${reservation.curso}</td>
+      </tr>
+      <tr>
+        <td class="label">Día</td>
+        <td class="value">${dayName}</td>
+      </tr>
+      <tr>
+        <td class="label">Bloque Horario</td>
+        <td class="value">${slot}</td>
+      </tr>
+      <tr>
+        <td class="label">Semana</td>
+        <td class="value">Semana ${parseInt(weekIdx, 10) + 1} (${yearMonth})</td>
+      </tr>
+      ${reservation.nota ? `<tr><td class="label">Observación</td><td class="value">${reservation.nota}</td></tr>` : ''}
+      ${teacherEmail ? `<tr><td class="label">Correo Docente</td><td class="value">${teacherEmail}</td></tr>` : ''}
+      <tr>
+        <td class="label">Registrado por</td>
+        <td class="value" style="color:#059669;">${createdBy || reservation.docente}</td>
+      </tr>
+    </table>
+  `;
 
-    const adminHtml = getEmailTemplate({
-      title: isBlocked ? 'Bloqueo Horario Institucional' : 'Nueva Reserva Registrada',
-      badgeColor: isBlocked ? '#475569' : '#059669',
-      badgeText: isBlocked ? '🔒 Bloqueo Registrado' : '📌 Notificación Administrador',
-      contentHtml: adminContent
-    });
+  const adminHtml = getEmailTemplate({
+    title: isBlocked ? 'Bloqueo Horario Institucional' : 'Nueva Reserva Registrada',
+    badgeColor: isBlocked ? '#475569' : '#059669',
+    badgeText: isBlocked ? '🔒 Bloqueo Registrado' : '📌 Notificación Administrador',
+    contentHtml: adminContent
+  });
+
+  for (const adminTo of adminRecipients) {
+    if (adminTo === teacherEmail && !isBlocked) {
+      // Si este administrador ya recibió el comprobante oficial como docente arriba, omitir duplicado
+      continue;
+    }
 
     try {
       await transporter.sendMail({
         from: `"Sistema Reservas HLL" <${smtpUser}>`,
-        to: adminEmail,
+        to: adminTo,
         subject: adminSubject,
         html: adminHtml
       });
-      console.log(`✉️ [Email] Alerta administrativa enviada al administrador: ${adminEmail}`);
+      console.log(`✉️ [Email] Alerta administrativa enviada al administrador: ${adminTo}`);
     } catch (err) {
-      console.error('❌ [Email] Error al enviar notificación administrativa:', err.message);
+      console.error(`❌ [Email] Error al enviar notificación a admin ${adminTo}:`, err.message);
     }
   }
 }

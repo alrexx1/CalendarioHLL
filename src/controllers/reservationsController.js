@@ -204,22 +204,38 @@ async function deleteReserva(req, res) {
       }
     }
 
-    // Disparar correo de notificación de cancelación al Administrador
-    if (existingResv) {
-      emailService.sendReservationCancelledNotification({
-        reservation: {
-          docente: existingResv.docente,
-          curso: existingResv.curso,
-          nota: existingResv.nota,
-          userEmail: existingResv.user_email || existingResv.userEmail
-        },
-        day,
-        slot,
-        weekIdx,
-        yearMonth,
-        cancelledBy: req.user?.name || 'Usuario del sistema'
-      }).catch(e => console.warn('Aviso email:', e.message));
+    // Si no se encontró en la tabla (por ejemplo un horario por defecto que aún no tenía fila persistida),
+    // tomar los datos enviados por el cliente
+    if (!existingResv && (req.body.docente || req.body.curso)) {
+      existingResv = {
+        docente: req.body.docente,
+        curso: req.body.curso,
+        nota: req.body.nota,
+        user_email: req.body.userEmail
+      };
     }
+
+    // Disparar correo de notificación de cancelación al Administrador y Docente
+    const resvToCancel = existingResv || {
+      docente: req.body.docente || 'Docente',
+      curso: req.body.curso || 'Reserva Horaria',
+      nota: req.body.nota || '',
+      user_email: req.body.userEmail
+    };
+
+    emailService.sendReservationCancelledNotification({
+      reservation: {
+        docente: resvToCancel.docente || 'Docente',
+        curso: resvToCancel.curso || 'Reserva',
+        nota: resvToCancel.nota || '',
+        userEmail: resvToCancel.user_email || resvToCancel.userEmail
+      },
+      day,
+      slot,
+      weekIdx,
+      yearMonth,
+      cancelledBy: req.user?.name || req.user?.email || 'Administrador HLL'
+    }).catch(e => console.warn('Aviso email cancelación:', e.message));
 
     return res.json({
       success: true,
