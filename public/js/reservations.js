@@ -226,6 +226,11 @@ const Reservations = {
     if (Calendar.db[ym]?.[weekIdx]?.[day]) {
       delete Calendar.db[ym][weekIdx][day][slot];
     }
+    if (Calendar.cache) {
+      Calendar.cache[ym] = { data: Calendar.db[ym], timestamp: Date.now() };
+    }
+    Calendar.lastSyncTime = Date.now();
+    Calendar.updateSyncUI?.();
 
     document.getElementById('detail-overlay')?.classList.remove('open');
     Calendar.render();
@@ -348,6 +353,11 @@ const Reservations = {
         while (Calendar.db[ym].length <= weekIdx) Calendar.db[ym].push({});
         if (!Calendar.db[ym][weekIdx][day]) Calendar.db[ym][weekIdx][day] = {};
         Calendar.db[ym][weekIdx][day][slot] = resvObj;
+        if (Calendar.cache) {
+          Calendar.cache[ym] = { data: Calendar.db[ym], timestamp: Date.now() };
+        }
+        Calendar.lastSyncTime = Date.now();
+        Calendar.updateSyncUI?.();
 
         this.closeAddModal();
         Calendar.render();

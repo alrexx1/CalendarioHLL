@@ -57,6 +57,17 @@ const API = {
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
+        // Si el token expiró o fue revocado en una petición autenticada
+        if (response.status === 401 && token && !endpoint.includes('/login') && !endpoint.includes('/register')) {
+          console.warn('⚠️ [API] Sesión institucional caducada o token inválido.');
+          this.clearSession();
+          if (typeof Auth !== 'undefined' && typeof Auth.clearSession === 'function') {
+            Auth.clearSession();
+          }
+          if (typeof showToast === 'function') {
+            showToast('⚠️ Su sesión institucional ha caducado por inactividad. Por favor ingrese nuevamente.', 'warning');
+          }
+        }
         throw new Error(data.message || `Error del servidor (${response.status})`);
       }
 

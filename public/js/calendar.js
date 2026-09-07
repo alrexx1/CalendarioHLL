@@ -60,6 +60,9 @@ const Calendar = {
   currentWeek: 0,
   activeWeeks: [],
   db: {},
+  cache: {},
+  lastSyncTime: null,
+  syncIntervalId: null,
   selectedMobileDay: 'all',
 
   init() {
@@ -93,6 +96,7 @@ const Calendar = {
     this.currentWeek = this.getTodayWeekIndex();
 
     this.bindEvents();
+    this.initSyncTimer();
     this.render();
     this.fetchMonth(this.currentYearMonth);
     this.checkHealth();
@@ -605,19 +609,97 @@ const Calendar = {
     this.renderCalendarGrid();
   },
 
-  async fetchMonth(ym) {
+  async fetchMonth(ym, forceRefresh = false) {
+    const syncBtn = document.getElementById('btn-sync-calendar');
+    const syncText = document.getElementById('sync-status-text');
+
+    // 1. Si tenemos datos en caché válidos y no es refresco forzado: render inmediato (0ms de latencia)
+    const cached = this.cache[ym];
+    const now = Date.now();
+    const isCacheFresh = cached && (now - cached.timestamp < 120000); // 2 minutos fresca
+
+    if (cached && !forceRefresh) {
+      this.db[ym] = cached.data;
+      this.activeWeeks = this.buildMonthStructure(ym);
+      this.render();
+      if (syncText) this.updateSyncUI();
+      if (!isCacheFresh) {
+        // Revalidar silenciosamente en segundo plano (Stale-While-Revalidate)
+        this.revalidateInBackground(ym);
+      }
+      return;
+    }
+
+    if (syncBtn) syncBtn.classList.add('syncing');
+    if (syncText) syncText.textContent = 'Actualizando...';
+
     try {
       const res = await API.getReservas(ym);
       if (res.success && Array.isArray(res.data)) {
+        this.cache[ym] = { data: res.data, timestamp: Date.now() };
         this.db[ym] = res.data;
         this.activeWeeks = this.buildMonthStructure(ym);
         this.render();
       }
+      this.lastSyncTime = Date.now();
+      this.updateSyncUI();
       this.updateNeonBadge(res.source === 'neon');
     } catch (err) {
       console.warn('Cargando calendario localmente:', err.message);
       this.updateNeonBadge(false);
+      if (syncText) syncText.textContent = 'Sin conexión';
+    } finally {
+      if (syncBtn) syncBtn.classList.remove('syncing');
     }
+  },
+
+  async revalidateInBackground(ym) {
+    try {
+      const res = await API.getReservas(ym);
+      if (res.success && Array.isArray(res.data)) {
+        this.cache[ym] = { data: res.data, timestamp: Date.now() };
+        this.db[ym] = res.data;
+        this.activeWeeks = this.buildMonthStructure(ym);
+        this.render();
+        this.lastSyncTime = Date.now();
+        this.updateSyncUI();
+      }
+    } catch (err) {
+      console.warn('Error en revalidación background:', err.message);
+    }
+  },
+
+  updateSyncUI() {
+    const syncText = document.getElementById('sync-status-text');
+    if (!syncText || !this.lastSyncTime) return;
+
+    const diffSec = Math.floor((Date.now() - this.lastSyncTime) / 1000);
+    if (diffSec < 45) {
+      syncText.textContent = 'Al día';
+    } else if (diffSec < 120) {
+      syncText.textContent = 'Hace 1 min';
+    } else {
+      const min = Math.floor(diffSec / 60);
+      syncText.textContent = `Hace ${min} min`;
+    }
+  },
+
+  initSyncTimer() {
+    if (this.syncIntervalId) clearInterval(this.syncIntervalId);
+    this.syncIntervalId = setInterval(() => {
+      this.updateSyncUI();
+    }, 30000);
+  },
+
+  invalidateCache(ym) {
+    if (ym) delete this.cache[ym];
+    else this.cache = {};
+  },
+
+  async loadMonth(ym) {
+    this.currentYearMonth = ym;
+    this.invalidateCache(ym);
+    return await this.fetchMonth(ym, true);
   },
 
   async checkHealth() {
@@ -667,6 +749,17 @@ const Calendar = {
 
     if (monthSelect) monthSelect.addEventListener('change', handleChange);
     if (yearSelect) yearSelect.addEventListener('change', handleChange);
+
+    // Botón de sincronización manual rápida
+    const btnSync = document.getElementById('btn-sync-calendar');
+    if (btnSync) {
+      btnSync.addEventListener('click', () => {
+        this.fetchMonth(this.currentYearMonth, true);
+        if (typeof showToast === 'function') {
+          showToast('🔄 Calendario sincronizado con el servidor.', 'info');
+        }
+      });
+    }
 
     document.getElementById('btn-prev')?.addEventListener('click', () => {
       if (this.currentWeek > 0) {
