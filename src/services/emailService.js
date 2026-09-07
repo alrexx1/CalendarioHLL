@@ -19,9 +19,9 @@ const DAY_NAMES = {
 // Crear transportador de correo
 let transporter = null;
 
-const smtpUser = process.env.SMTP_USER;
-const smtpPass = process.env.SMTP_PASS;
-const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL || smtpUser;
+const smtpUser = process.env.SMTP_USER ? process.env.SMTP_USER.trim() : null;
+const smtpPass = process.env.SMTP_PASS ? process.env.SMTP_PASS.replace(/\s+/g, '') : null;
+const adminEmail = (process.env.ADMIN_NOTIFICATION_EMAIL || smtpUser)?.trim();
 
 if (smtpUser && smtpPass) {
   transporter = nodemailer.createTransport({
