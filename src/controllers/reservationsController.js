@@ -83,6 +83,8 @@ async function createOrUpdateReserva(req, res) {
     let savedSource = 'local';
     let savedId = null;
 
+    const effectiveEmail = (userEmail || req.user?.email || '').toLowerCase().trim();
+
     if (pool && db.isNeonConnected()) {
       const query = `
         INSERT INTO reservas (year_month, week_idx, day, slot, docente, curso, nota, is_blocked, user_email, updated_at)
@@ -106,7 +108,7 @@ async function createOrUpdateReserva(req, res) {
         curso || (isBlocked ? 'Bloqueo Institucional' : ''),
         nota || '',
         Boolean(isBlocked),
-        userEmail || ''
+        effectiveEmail
       ]);
 
       savedSource = 'neon';
@@ -124,7 +126,7 @@ async function createOrUpdateReserva(req, res) {
         curso: curso || (isBlocked ? 'Bloqueo Institucional' : ''),
         nota: nota || '',
         isBlocked: Boolean(isBlocked),
-        userEmail: userEmail || ''
+        userEmail: effectiveEmail
       };
       db.saveLocalJson(localDb);
     }
@@ -136,7 +138,7 @@ async function createOrUpdateReserva(req, res) {
         curso: curso || (isBlocked ? 'Bloqueo Institucional' : ''),
         nota: nota || '',
         isBlocked: Boolean(isBlocked),
-        userEmail: userEmail || ''
+        userEmail: effectiveEmail
       },
       day,
       slot,

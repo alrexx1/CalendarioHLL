@@ -92,142 +92,262 @@ function getEmailTemplate({ title, badgeColor, badgeText, contentHtml }) {
 }
 
 /**
- * Enviar notificación al Administrador cuando una reserva se cancela/anula
+ * Enviar notificación al Administrador y comprobante al Docente cuando una reserva se cancela/anula
  */
 async function sendReservationCancelledNotification({ reservation, day, slot, weekIdx, yearMonth, cancelledBy }) {
-  if (!transporter || !adminEmail) return;
+  if (!transporter) return;
 
   const dayName = DAY_NAMES[day] || day;
-  const subject = `[Colegio HLL] ⚠️ Cancelación de Horario — ${dayName} ${slot}`;
+  const teacherEmail = reservation.userEmail?.trim();
 
-  const contentHtml = `
-    <p style="font-size:14px; color:#475569; margin: 0 0 16px; line-height:1.5;">
-      Se ha <b>cancelado una reserva</b> y el bloque horario correspondiente ha quedado <b>disponible</b> en la Sala de Computación.
-    </p>
-    <table class="data-table">
-      <tr>
-        <td class="label">Docente</td>
-        <td class="value">${reservation.docente || 'No especificado'}</td>
-      </tr>
-      <tr>
-        <td class="label">Curso / Actividad</td>
-        <td class="value">${reservation.curso || 'No especificado'}</td>
-      </tr>
-      <tr>
-        <td class="label">Día</td>
-        <td class="value">${dayName}</td>
-      </tr>
-      <tr>
-        <td class="label">Bloque Horario</td>
-        <td class="value">${slot}</td>
-      </tr>
-      <tr>
-        <td class="label">Semana</td>
-        <td class="value">Semana ${parseInt(weekIdx, 10) + 1} (${yearMonth})</td>
-      </tr>
-      ${reservation.nota ? `<tr><td class="label">Nota previa</td><td class="value">${reservation.nota}</td></tr>` : ''}
-      <tr>
-        <td class="label">Cancelado por</td>
-        <td class="value" style="color:#DC2626;">${cancelledBy || 'Usuario del sistema'}</td>
-      </tr>
-    </table>
-  `;
+  // 1. Comprobante de Cancelación al Docente
+  if (teacherEmail && teacherEmail.includes('@')) {
+    const teacherContent = `
+      <p style="font-size:15px; color:#334155; margin: 0 0 16px; line-height:1.6;">
+        Estimado/a <b>${reservation.docente || 'Docente'}</b>,
+      </p>
+      <p style="font-size:14px; color:#475569; margin: 0 0 16px; line-height:1.5;">
+        Le informamos que la reserva para la <b>Sala de Computación</b> ha sido <b>cancelada</b> y el horario correspondiente ha quedado disponible.
+      </p>
+      <table class="data-table">
+        <tr>
+          <td class="label">Docente</td>
+          <td class="value">${reservation.docente || 'No especificado'}</td>
+        </tr>
+        <tr>
+          <td class="label">Curso / Actividad</td>
+          <td class="value">${reservation.curso || 'No especificado'}</td>
+        </tr>
+        <tr>
+          <td class="label">Día</td>
+          <td class="value">${dayName}</td>
+        </tr>
+        <tr>
+          <td class="label">Bloque Horario</td>
+          <td class="value">${slot}</td>
+        </tr>
+        <tr>
+          <td class="label">Semana</td>
+          <td class="value">Semana ${parseInt(weekIdx, 10) + 1} (${yearMonth})</td>
+        </tr>
+        <tr>
+          <td class="label">Cancelado por</td>
+          <td class="value" style="color:#DC2626;">${cancelledBy || 'Usuario del sistema'}</td>
+        </tr>
+      </table>
+      <p style="font-size:13px; color:#64748B; margin: 16px 0 0;">
+        Si desea agendar otro bloque horario, puede ingresar nuevamente al sistema cuando lo requiera.
+      </p>
+    `;
 
-  const html = getEmailTemplate({
-    title: 'Horario Cancelado / Liberado',
-    badgeColor: '#DC2626',
-    badgeText: '⚠️ Cancelación Registrada',
-    contentHtml
-  });
+    const teacherHtml = getEmailTemplate({
+      title: 'Comprobante de Cancelación de Horario',
+      badgeColor: '#DC2626',
+      badgeText: '⚠️ Horario Cancelado',
+      contentHtml: teacherContent
+    });
 
-  const mailOptions = {
-    from: `"Sistema Reservas HLL" <${smtpUser}>`,
-    to: adminEmail,
-    subject,
-    html
-  };
-
-  // Si el docente tenía correo asociado, enviarle copia de respaldo
-  if (reservation.userEmail && reservation.userEmail !== adminEmail && reservation.userEmail.includes('@')) {
-    mailOptions.cc = reservation.userEmail;
+    try {
+      await transporter.sendMail({
+        from: `"Sistema Reservas HLL" <${smtpUser}>`,
+        to: teacherEmail,
+        subject: `[Colegio HLL] ⚠️ Cancelación de Reserva — Sala de Computación (${dayName} ${slot})`,
+        html: teacherHtml
+      });
+      console.log(`✉️ [Email] Comprobante de cancelación enviado al docente: ${teacherEmail}`);
+    } catch (err) {
+      console.error(`❌ [Email] Error al enviar comprobante de cancelación a ${teacherEmail}:`, err.message);
+    }
   }
 
-  try {
-    await transporter.sendMail(mailOptions);
-    console.log(`✉️ [Email] Notificación de cancelación enviada con éxito a ${adminEmail}`);
-  } catch (err) {
-    console.error('❌ [Email] Error al enviar notificación de cancelación:', err.message);
+  // 2. Alerta Administrativa al Administrador (si es diferente al docente)
+  if (adminEmail && adminEmail !== teacherEmail) {
+    const adminContent = `
+      <p style="font-size:14px; color:#475569; margin: 0 0 16px; line-height:1.5;">
+        Se ha <b>cancelado una reserva</b> y el bloque horario correspondiente ha quedado <b>disponible</b> en la Sala de Computación.
+      </p>
+      <table class="data-table">
+        <tr>
+          <td class="label">Docente</td>
+          <td class="value">${reservation.docente || 'No especificado'}</td>
+        </tr>
+        <tr>
+          <td class="label">Curso / Actividad</td>
+          <td class="value">${reservation.curso || 'No especificado'}</td>
+        </tr>
+        <tr>
+          <td class="label">Día</td>
+          <td class="value">${dayName}</td>
+        </tr>
+        <tr>
+          <td class="label">Bloque Horario</td>
+          <td class="value">${slot}</td>
+        </tr>
+        <tr>
+          <td class="label">Semana</td>
+          <td class="value">Semana ${parseInt(weekIdx, 10) + 1} (${yearMonth})</td>
+        </tr>
+        ${reservation.nota ? `<tr><td class="label">Nota previa</td><td class="value">${reservation.nota}</td></tr>` : ''}
+        ${teacherEmail ? `<tr><td class="label">Correo Docente</td><td class="value">${teacherEmail}</td></tr>` : ''}
+        <tr>
+          <td class="label">Cancelado por</td>
+          <td class="value" style="color:#DC2626;">${cancelledBy || 'Usuario del sistema'}</td>
+        </tr>
+      </table>
+    `;
+
+    const adminHtml = getEmailTemplate({
+      title: 'Horario Cancelado / Liberado',
+      badgeColor: '#DC2626',
+      badgeText: '⚠️ Cancelación Registrada',
+      contentHtml: adminContent
+    });
+
+    try {
+      await transporter.sendMail({
+        from: `"Sistema Reservas HLL" <${smtpUser}>`,
+        to: adminEmail,
+        subject: `[Colegio HLL] ⚠️ Aviso Administrador: Cancelación — ${dayName} ${slot}`,
+        html: adminHtml
+      });
+      console.log(`✉️ [Email] Notificación de cancelación enviada al administrador: ${adminEmail}`);
+    } catch (err) {
+      console.error('❌ [Email] Error al enviar notificación de cancelación al admin:', err.message);
+    }
   }
 }
 
 /**
- * Enviar notificación cuando se crea una nueva reserva
+ * Enviar comprobante oficial al Docente y notificación al Administrador al crear una reserva
  */
 async function sendReservationCreatedNotification({ reservation, day, slot, weekIdx, yearMonth, createdBy }) {
-  if (!transporter || !adminEmail) return;
+  if (!transporter) return;
 
   const dayName = DAY_NAMES[day] || day;
   const isBlocked = Boolean(reservation.isBlocked);
-  const subject = isBlocked
-    ? `[Colegio HLL] 🔒 Bloqueo de Horario — ${dayName} ${slot}`
-    : `[Colegio HLL] 📌 Nueva Reserva Agendada — ${reservation.docente} (${dayName} ${slot})`;
+  const teacherEmail = reservation.userEmail?.trim();
 
-  const contentHtml = `
-    <p style="font-size:14px; color:#475569; margin: 0 0 16px; line-height:1.5;">
-      ${isBlocked ? 'Se ha registrado un <b>bloqueo institucional</b> de horario.' : 'Se ha registrado una <b>nueva reserva</b> en la Sala de Computación.'}
-    </p>
-    <table class="data-table">
-      <tr>
-        <td class="label">${isBlocked ? 'Estado' : 'Docente'}</td>
-        <td class="value">${reservation.docente}</td>
-      </tr>
-      <tr>
-        <td class="label">${isBlocked ? 'Motivo' : 'Curso / Asignatura'}</td>
-        <td class="value">${reservation.curso}</td>
-      </tr>
-      <tr>
-        <td class="label">Día</td>
-        <td class="value">${dayName}</td>
-      </tr>
-      <tr>
-        <td class="label">Bloque Horario</td>
-        <td class="value">${slot}</td>
-      </tr>
-      <tr>
-        <td class="label">Semana</td>
-        <td class="value">Semana ${parseInt(weekIdx, 10) + 1} (${yearMonth})</td>
-      </tr>
-      ${reservation.nota ? `<tr><td class="label">Observación</td><td class="value">${reservation.nota}</td></tr>` : ''}
-      <tr>
-        <td class="label">Registrado por</td>
-        <td class="value" style="color:#059669;">${createdBy || reservation.docente}</td>
-      </tr>
-    </table>
-  `;
+  // 1. Enviar COMPROBANTE OFICIAL AL DOCENTE (si hay correo y no es bloqueo técnico)
+  if (teacherEmail && teacherEmail.includes('@') && !isBlocked) {
+    const teacherSubject = `[Colegio HLL] 📄 Comprobante de Reserva — Sala de Computación (${dayName} ${slot})`;
+    const teacherContent = `
+      <p style="font-size:15px; color:#334155; margin: 0 0 16px; line-height:1.6;">
+        Estimado/a <b>${reservation.docente || 'Docente'}</b>,
+      </p>
+      <p style="font-size:14px; color:#475569; margin: 0 0 16px; line-height:1.5;">
+        Su reserva para la <b>Sala de Computación</b> ha sido confirmada exitosamente en el sistema del Colegio Santo Domingo Helen Lee Lassen. A continuación los detalles de su comprobante:
+      </p>
+      <table class="data-table">
+        <tr>
+          <td class="label">Docente Responsable</td>
+          <td class="value">${reservation.docente}</td>
+        </tr>
+        <tr>
+          <td class="label">Curso / Asignatura</td>
+          <td class="value">${reservation.curso}</td>
+        </tr>
+        <tr>
+          <td class="label">Día de la Semana</td>
+          <td class="value">${dayName}</td>
+        </tr>
+        <tr>
+          <td class="label">Bloque Horario</td>
+          <td class="value">${slot}</td>
+        </tr>
+        <tr>
+          <td class="label">Semana</td>
+          <td class="value">Semana ${parseInt(weekIdx, 10) + 1} (${yearMonth})</td>
+        </tr>
+        ${reservation.nota ? `<tr><td class="label">Observaciones</td><td class="value">${reservation.nota}</td></tr>` : ''}
+        <tr>
+          <td class="label">Estado de la Sala</td>
+          <td class="value" style="color:#059669;">✓ Reserva Confirmada</td>
+        </tr>
+      </table>
+      <div style="background:#F0FDF4; border-left:4px solid #16A34A; padding:12px 16px; border-radius:8px; margin:20px 0; font-size:13px; color:#166534; line-height:1.5;">
+        📌 <b>Recordatorio Institucional:</b> Por favor iniciar y culminar su clase con puntualidad para respetar los bloques de los demás cursos, y supervisar que los equipos queden apagados y el aula ordenada al finalizar.
+      </div>
+    `;
 
-  const html = getEmailTemplate({
-    title: isBlocked ? 'Bloqueo Horario Institucional' : 'Nueva Reserva Confirmada',
-    badgeColor: isBlocked ? '#475569' : '#059669',
-    badgeText: isBlocked ? '🔒 Bloqueo Registrado' : '📌 Reserva Confirmada',
-    contentHtml
-  });
+    const teacherHtml = getEmailTemplate({
+      title: 'Comprobante de Reserva de Sala',
+      badgeColor: '#059669',
+      badgeText: '✓ Comprobante Confirmado',
+      contentHtml: teacherContent
+    });
 
-  const mailOptions = {
-    from: `"Sistema Reservas HLL" <${smtpUser}>`,
-    to: adminEmail,
-    subject,
-    html
-  };
-
-  if (reservation.userEmail && reservation.userEmail !== adminEmail && reservation.userEmail.includes('@')) {
-    mailOptions.cc = reservation.userEmail;
+    try {
+      await transporter.sendMail({
+        from: `"Sistema Reservas HLL" <${smtpUser}>`,
+        to: teacherEmail,
+        subject: teacherSubject,
+        html: teacherHtml
+      });
+      console.log(`✉️ [Email] Comprobante oficial de reserva enviado al docente: ${teacherEmail}`);
+    } catch (err) {
+      console.error(`❌ [Email] Error al enviar comprobante a ${teacherEmail}:`, err.message);
+    }
   }
 
-  try {
-    await transporter.sendMail(mailOptions);
-    console.log(`✉️ [Email] Notificación de nueva reserva enviada con éxito a ${adminEmail}`);
-  } catch (err) {
-    console.error('❌ [Email] Error al enviar notificación de reserva:', err.message);
+  // 2. Enviar NOTIFICACIÓN ADMINISTRATIVA AL ADMINISTRADOR
+  // (Si el correo del admin es diferente al del profesor, o si es un bloqueo institucional)
+  if (adminEmail && (adminEmail !== teacherEmail || isBlocked)) {
+    const adminSubject = isBlocked
+      ? `[Colegio HLL] 🔒 Bloqueo de Horario — ${dayName} ${slot}`
+      : `[Colegio HLL] 📌 Nueva Reserva Agendada — ${reservation.docente} (${dayName} ${slot})`;
+
+    const adminContent = `
+      <p style="font-size:14px; color:#475569; margin: 0 0 16px; line-height:1.5;">
+        ${isBlocked ? 'Se ha registrado un <b>bloqueo institucional</b> de horario.' : 'Se ha registrado una <b>nueva reserva</b> en la Sala de Computación.'}
+      </p>
+      <table class="data-table">
+        <tr>
+          <td class="label">${isBlocked ? 'Estado' : 'Docente'}</td>
+          <td class="value">${reservation.docente}</td>
+        </tr>
+        <tr>
+          <td class="label">${isBlocked ? 'Motivo' : 'Curso / Asignatura'}</td>
+          <td class="value">${reservation.curso}</td>
+        </tr>
+        <tr>
+          <td class="label">Día</td>
+          <td class="value">${dayName}</td>
+        </tr>
+        <tr>
+          <td class="label">Bloque Horario</td>
+          <td class="value">${slot}</td>
+        </tr>
+        <tr>
+          <td class="label">Semana</td>
+          <td class="value">Semana ${parseInt(weekIdx, 10) + 1} (${yearMonth})</td>
+        </tr>
+        ${reservation.nota ? `<tr><td class="label">Observación</td><td class="value">${reservation.nota}</td></tr>` : ''}
+        ${teacherEmail ? `<tr><td class="label">Correo Docente</td><td class="value">${teacherEmail}</td></tr>` : ''}
+        <tr>
+          <td class="label">Registrado por</td>
+          <td class="value" style="color:#059669;">${createdBy || reservation.docente}</td>
+        </tr>
+      </table>
+    `;
+
+    const adminHtml = getEmailTemplate({
+      title: isBlocked ? 'Bloqueo Horario Institucional' : 'Nueva Reserva Registrada',
+      badgeColor: isBlocked ? '#475569' : '#059669',
+      badgeText: isBlocked ? '🔒 Bloqueo Registrado' : '📌 Notificación Administrador',
+      contentHtml: adminContent
+    });
+
+    try {
+      await transporter.sendMail({
+        from: `"Sistema Reservas HLL" <${smtpUser}>`,
+        to: adminEmail,
+        subject: adminSubject,
+        html: adminHtml
+      });
+      console.log(`✉️ [Email] Alerta administrativa enviada al administrador: ${adminEmail}`);
+    } catch (err) {
+      console.error('❌ [Email] Error al enviar notificación administrativa:', err.message);
+    }
   }
 }
 

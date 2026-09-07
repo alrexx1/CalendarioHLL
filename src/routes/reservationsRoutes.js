@@ -8,6 +8,9 @@
 const express = require('express');
 const router = express.Router();
 const reservationsController = require('../controllers/reservationsController');
+const { optionalAuth } = require('../middleware/authMiddleware');
+
+router.use(optionalAuth);
 
 // Consultar reservas de un mes (?month=YYYY-MM)
 router.get('/', reservationsController.getMonthReservas);

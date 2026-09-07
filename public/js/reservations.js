@@ -47,6 +47,10 @@ const Reservations = {
 
     document.getElementById('f-curso').value = '';
     document.getElementById('f-nota').value = '';
+    const emailField = document.getElementById('f-email');
+    if (emailField) {
+      emailField.value = Auth.currentUser?.email || '';
+    }
     document.getElementById('docente-curso-row').style.opacity = '1';
     this.hideError();
 
@@ -209,13 +213,16 @@ const Reservations = {
           return;
         }
 
+        const userEmail = (document.getElementById('f-email')?.value.trim() || Auth.currentUser?.email || '').trim();
+
         if (!w.reservations[day]) w.reservations[day] = {};
         const resvObj = {
           docente,
           curso,
           nota,
           isBlocked: isBloqueo,
-          userCreated: true
+          userCreated: true,
+          userEmail
         };
         w.reservations[day][slot] = resvObj;
 
@@ -239,7 +246,7 @@ const Reservations = {
             curso,
             nota,
             isBlocked: isBloqueo,
-            userEmail: Auth.currentUser?.email || ''
+            userEmail
           });
         } catch (err) {
           console.warn('Error guardando en el servidor:', err.message);

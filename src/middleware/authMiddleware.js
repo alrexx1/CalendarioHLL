@@ -33,7 +33,21 @@ function requireAdmin(req, res, next) {
   });
 }
 
+function optionalAuth(req, res, next) {
+  const authHeader = req.headers['authorization'] || '';
+  const token = authHeader.replace(/^Bearer\s+/i, '') || req.query.token;
+
+  if (token) {
+    const payload = verifyToken(token);
+    if (payload) {
+      req.user = payload;
+    }
+  }
+  next();
+}
+
 module.exports = {
   requireAuth,
-  requireAdmin
+  requireAdmin,
+  optionalAuth
 };
