@@ -99,10 +99,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Registro de Service Worker (PWA)
+  // Registro de Service Worker (PWA) con actualización automática
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js')
-      .then((reg) => console.log('📱 [PWA] Service Worker activo:', reg.scope))
+      .then((reg) => {
+        console.log('📱 [PWA] Service Worker activo:', reg.scope);
+        reg.update().catch(() => {});
+      })
       .catch((err) => console.warn('⚠️ [PWA] Service Worker no disponible:', err.message));
   }
 });

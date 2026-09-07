@@ -28,6 +28,14 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Service Worker con cabeceras anti-caché para actualizaciones instantáneas de PWA
+app.get('/sw.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.sendFile(path.join(__dirname, 'public', 'sw.js'));
+});
+
 // Servir archivos estáticos (public y raíz para compatibilidad)
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 app.use(express.static(__dirname, { index: false }));

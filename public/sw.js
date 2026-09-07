@@ -5,17 +5,19 @@
  * ══════════════════════════════════════════════════════════════════════════════
  */
 
-const CACHE_NAME = 'hll-calendario-v1.2';
+const CACHE_NAME = 'hll-calendario-v1.3';
 
 const STATIC_ASSETS = [
   '/',
   '/sala_computacion.html',
   '/css/sala_computacion.css',
+  '/js/vendor/exceljs.min.js',
   '/js/api.js',
   '/js/auth.js',
   '/js/calendar.js',
   '/js/reservations.js',
   '/js/excel.js',
+  '/js/users.js',
   '/js/app.js',
   '/manifest.json',
   '/icons/icon-192.png',
