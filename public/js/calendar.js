@@ -29,6 +29,7 @@ const Calendar = {
   currentWeek: 0,
   activeWeeks: [],
   db: {},
+  selectedMobileDay: 'all',
 
   init() {
     // 1. Detectar automáticamente el año y mes en curso en tiempo real
@@ -150,6 +151,11 @@ const Calendar = {
         this.currentWeek = i;
         this.render();
       });
+      if (i === this.currentWeek) {
+        setTimeout(() => {
+          btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }, 60);
+      }
       container.appendChild(btn);
     });
 
@@ -204,12 +210,18 @@ const Calendar = {
     grid.innerHTML = '';
     grid.className = 'calendar-grid fade-in';
 
+    // Mantener filtro activo de día móvil si corresponde
+    if (this.selectedMobileDay && this.selectedMobileDay !== 'all') {
+      grid.classList.add(`filter-${this.selectedMobileDay}`);
+    }
+
     const w = this.activeWeeks[this.currentWeek] || this.activeWeeks[0];
     if (!w) return;
 
     // Encabezado de Horas
     const timeHeader = document.createElement('div');
     timeHeader.className = 'cal-header-cell time-col';
+    timeHeader.setAttribute('data-day', 'time');
     timeHeader.textContent = 'Horario';
     grid.appendChild(timeHeader);
 
@@ -218,6 +230,7 @@ const Calendar = {
       const date = this.getDayDate(this.currentWeek, idx);
       const cell = document.createElement('div');
       cell.className = `cal-header-cell day-${day}${this.isToday(date) ? ' day-today' : ''}`;
+      cell.setAttribute('data-day', day);
       cell.innerHTML = `${this.DAY_NAMES[day]}<span class="day-date">${this.formatDate(date)}</span>`;
       grid.appendChild(cell);
     });
@@ -227,12 +240,14 @@ const Calendar = {
       if (ts.break) {
         const breakTime = document.createElement('div');
         breakTime.className = 'cal-break-cell';
+        breakTime.setAttribute('data-day', 'time');
         breakTime.textContent = ts.label;
         grid.appendChild(breakTime);
 
-        this.DAYS.forEach(() => {
+        this.DAYS.forEach((day) => {
           const cell = document.createElement('div');
           cell.className = 'cal-slot break-row';
+          cell.setAttribute('data-day', day);
           grid.appendChild(cell);
         });
         return;
@@ -240,11 +255,13 @@ const Calendar = {
 
       const timeCell = document.createElement('div');
       timeCell.className = 'cal-time-cell';
+      timeCell.setAttribute('data-day', 'time');
       timeCell.textContent = ts.label;
       grid.appendChild(timeCell);
 
       this.DAYS.forEach(day => {
         const slotCell = document.createElement('div');
+        slotCell.setAttribute('data-day', day);
         const reservation = w.reservations[day]?.[ts.id];
 
         if (reservation) {
@@ -275,7 +292,7 @@ const Calendar = {
         } else {
           slotCell.className = 'cal-slot free-slot';
           slotCell.setAttribute('title', `Disponible: ${this.DAY_NAMES[day]} ${ts.label}`);
-          slotCell.innerHTML = `<div class="slot-empty"><div class="slot-empty-icon">+</div></div>`;
+          slotCell.innerHTML = `<div class="slot-empty"><div class="slot-empty-icon">+</div><span class="slot-empty-label">Disponible</span></div>`;
           slotCell.addEventListener('click', () => {
             if (!Auth.isTeacher && !Auth.isAdmin) {
               Auth.openAdminLoginModal();
@@ -284,9 +301,23 @@ const Calendar = {
             }
           });
         }
+
         grid.appendChild(slotCell);
       });
     });
+  },
+
+  setMobileDay(day) {
+    this.selectedMobileDay = day || 'all';
+    const grid = document.getElementById('calendar-grid');
+    if (grid) {
+      grid.classList.remove('filter-mon', 'filter-tue', 'filter-wed', 'filter-thu', 'filter-fri');
+      if (this.selectedMobileDay !== 'all') {
+        grid.classList.add(`filter-${this.selectedMobileDay}`);
+      }
+    }
+    const wrapper = document.getElementById('calendar-wrapper');
+    if (wrapper) wrapper.scrollLeft = 0;
   },
 
   render() {
@@ -371,5 +402,17 @@ const Calendar = {
         this.render();
       }
     });
+
+    // Selector de día en móvil (Lunes a Viernes o Semana Completa)
+    const mobileDayNav = document.getElementById('mobile-day-nav');
+    if (mobileDayNav) {
+      mobileDayNav.addEventListener('click', (e) => {
+        const tab = e.target.closest('.m-day-tab');
+        if (!tab) return;
+        mobileDayNav.querySelectorAll('.m-day-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        this.setMobileDay(tab.dataset.day || 'all');
+      });
+    }
   }
 };

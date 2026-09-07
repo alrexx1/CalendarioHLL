@@ -5,7 +5,7 @@
  * ══════════════════════════════════════════════════════════════════════════════
  */
 
-const CACHE_NAME = 'hll-calendario-v1.1';
+const CACHE_NAME = 'hll-calendario-v1.2';
 
 const STATIC_ASSETS = [
   '/',

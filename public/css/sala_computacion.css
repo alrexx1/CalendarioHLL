@@ -798,12 +798,7 @@ select:not(.month-select):focus {
   to { opacity: 1; }
 }
 
-@media (max-width: 768px) {
-  .sub-brand { display: none; }
-  .header-inner { padding: 12px 16px; }
-  .main { padding: 16px 12px 40px; }
-  .form-row { grid-template-columns: 1fr; }
-}
+
 
 /* ─────────────────────────────────────────────────────────────────────────────
    ESTILOS DE SEGURIDAD Y CAMBIO OBLIGATORIO DE CONTRASEÑA
@@ -1223,20 +1218,6 @@ select:not(.month-select):focus {
   gap: 12px;
 }
 
-@media (max-width: 640px) {
-  .import-config-grid {
-    grid-template-columns: 1fr !important;
-  }
-  .template-download-banner {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .template-download-banner button {
-    width: 100%;
-    justify-content: center;
-  }
-}
-
 .preview-table th {
   font-weight: 700;
   font-size: 0.76rem;
@@ -1247,5 +1228,497 @@ select:not(.month-select):focus {
 .preview-table tr:hover td {
   background: rgba(11, 37, 69, 0.02);
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   SISTEMA DE DISEÑO RESPONSIVO INTEGRAL PARA MÓVILES, TABLETS Y PWA
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* 1. Botones de Cabecera Móvil */
+.header-mobile-actions {
+  display: none;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-mobile-quick {
+  padding: 7px 12px !important;
+  font-size: 0.8rem !important;
+  gap: 5px !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: 0 2px 6px rgba(212, 175, 55, 0.3) !important;
+}
+
+.btn-mobile-menu {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--radius-sm);
+  color: #FFFFFF;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 0;
+}
+.btn-mobile-menu:active {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(0.95);
+}
+
+/* 2. Columna de Horario Fija (Sticky Left) en el Calendario */
+.cal-header-cell.time-col,
+.cal-time-cell,
+.cal-break-cell {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  background: #F8FAFC;
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.05);
+}
+.cal-header-cell.time-col {
+  z-index: 12;
+  background: #E2E8F0;
+}
+
+/* 3. Selector de Día en Móvil */
+.mobile-day-nav {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+  padding: 4px 2px 8px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.mobile-day-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.m-day-tab {
+  flex: 1;
+  min-width: 58px;
+  padding: 8px 10px;
+  background: #FFFFFF;
+  border: 1px solid var(--border-strong);
+  border-radius: 99px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.m-day-tab:active {
+  transform: scale(0.96);
+}
+.m-day-tab.active {
+  background: var(--hll-navy);
+  color: #FFFFFF;
+  border-color: var(--hll-navy);
+  box-shadow: 0 2px 8px rgba(11, 37, 69, 0.3);
+}
+
+.mobile-scroll-hint {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+/* Filtro Día a Día en Móvil */
+.calendar-grid.filter-mon [data-day]:not([data-day="time"]):not([data-day="mon"]),
+.calendar-grid.filter-tue [data-day]:not([data-day="time"]):not([data-day="tue"]),
+.calendar-grid.filter-wed [data-day]:not([data-day="time"]):not([data-day="wed"]),
+.calendar-grid.filter-thu [data-day]:not([data-day="time"]):not([data-day="thu"]),
+.calendar-grid.filter-fri [data-day]:not([data-day="time"]):not([data-day="fri"]) {
+  display: none !important;
+}
+
+.calendar-grid.filter-mon,
+.calendar-grid.filter-tue,
+.calendar-grid.filter-wed,
+.calendar-grid.filter-thu,
+.calendar-grid.filter-fri {
+  grid-template-columns: 110px 1fr !important;
+  min-width: 100% !important;
+}
+
+/* Indicador táctil para celdas disponibles */
+.slot-empty-label {
+  display: none;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--hll-blue);
+  margin-top: 2px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   MEDIA QUERY: TABLETS Y PANTALLAS MEDIANAS (<= 992px)
+   ══════════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 992px) {
+  .header-mobile-actions {
+    display: flex;
+  }
+
+  /* Ocultar botón duplicado de reserva en escritorio */
+  #btn-add-modal {
+    display: none;
+  }
+
+  /* El contenedor de opciones de cabecera se transforma en panel móvil */
+  .header-meta {
+    display: none;
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding-top: 14px;
+    margin-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.18);
+  }
+
+  .header-meta.mobile-open {
+    display: flex;
+    animation: slideDownMenu 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes slideDownMenu {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .admin-switch-wrapper,
+  .month-selector-wrapper {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .month-selector-wrapper select {
+    flex: 1;
+  }
+
+  .header-meta .btn-secondary,
+  .header-meta .btn-primary {
+    width: 100%;
+    justify-content: center;
+    padding: 11px 16px;
+  }
+
+  .teacher-session-info {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .mobile-day-nav {
+    display: flex;
+  }
+  .mobile-scroll-hint {
+    display: flex;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   MEDIA QUERY: TELÉFONOS INTELIGENTES (<= 768px)
+   ══════════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .header {
+    padding-top: var(--safe-top);
+  }
+
+  .header-inner {
+    padding: 10px 14px;
+  }
+
+  .brand {
+    gap: 10px;
+  }
+
+  .brand-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    padding: 3px;
+  }
+
+  .brand-text h1 {
+    font-size: 1rem;
+    line-height: 1.15;
+  }
+
+  .sub-brand {
+    display: none;
+  }
+
+  .main {
+    padding: 14px 10px calc(36px + var(--safe-bottom));
+  }
+
+  /* Navegación semanal táctil con snap */
+  .week-nav {
+    gap: 8px;
+  }
+
+  .week-arrow {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+  }
+
+  .week-tabs {
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 6px;
+  }
+  .week-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .week-tab {
+    min-width: 110px;
+    padding: 8px 10px;
+    font-size: 0.78rem;
+    scroll-snap-align: start;
+    border-radius: 8px;
+  }
+
+  /* Banner estadístico móvil */
+  .week-banner {
+    padding: 12px 14px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .week-banner-left {
+    font-size: 0.85rem;
+  }
+
+  .week-stats {
+    width: 100%;
+    display: flex;
+    gap: 8px;
+  }
+
+  .stat-pill {
+    flex: 1;
+    justify-content: center;
+    font-size: 0.74rem;
+    padding: 6px 10px;
+  }
+
+  /* Modales en formato Bottom Sheet nativo móvil */
+  .modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .modal {
+    max-width: 100% !important;
+    width: 100% !important;
+    border-radius: 20px 20px 0 0 !important;
+    max-height: 90vh !important;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    transform: translateY(100%);
+    transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .modal-overlay.open .modal {
+    transform: translateY(0);
+  }
+
+  .modal-header {
+    padding: 16px 20px 14px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .modal-body {
+    padding: 18px 20px calc(24px + var(--safe-bottom));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    flex: 1;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  /* Evitar auto-zoom molesto en iOS */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  select {
+    font-size: 16px !important;
+    padding: 11px 14px;
+  }
+
+  .form-actions {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+
+  .form-actions button {
+    width: 100%;
+    padding: 13px;
+    font-size: 0.92rem;
+  }
+
+  /* Pantalla de Acceso Institucional en Móvil */
+  .access-card {
+    padding: 24px 20px 20px !important;
+    margin: 16px !important;
+    max-width: 100% !important;
+    border-radius: 16px !important;
+  }
+
+  .access-logo img {
+    width: 44px;
+    height: 44px;
+  }
+
+  .access-title {
+    font-size: 1.05rem;
+  }
+
+  .access-subtitle {
+    font-size: 0.78rem;
+    margin-bottom: 16px;
+  }
+
+  .access-btn {
+    padding: 13px;
+    font-size: 0.95rem;
+  }
+
+  /* Grilla del Calendario en Móvil */
+  .calendar-grid {
+    min-width: 680px;
+  }
+
+  .cal-header-cell {
+    padding: 10px 6px;
+    font-size: 0.76rem;
+  }
+
+  .cal-slot {
+    min-height: 56px;
+    padding: 4px;
+  }
+
+  .cal-time-cell {
+    padding: 8px 6px;
+    font-size: 0.72rem;
+  }
+
+  .reservation-card {
+    padding: 6px 8px;
+    border-radius: 6px;
+  }
+
+  .card-teacher {
+    font-size: 0.76rem;
+  }
+
+  .card-course {
+    font-size: 0.7rem;
+  }
+
+  /* Celdas libres táctiles en móvil */
+  .cal-slot.free-slot .slot-empty {
+    opacity: 0.65;
+  }
+
+  .slot-empty-icon {
+    width: 22px;
+    height: 22px;
+    font-size: 0.9rem;
+  }
+
+  .slot-empty-label {
+    display: block;
+  }
+
+  /* Modal de Importación Móvil */
+  .import-config-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .template-download-banner {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 10px;
+  }
+
+  .template-download-banner button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .users-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .users-search-box {
+    min-width: 100%;
+  }
+
+  .users-stats-badges {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .users-stats-badges .stat-pill {
+    flex: 1;
+    text-align: center;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   MEDIA QUERY: PANTALLAS EXTRA PEQUEÑAS (<= 380px)
+   ══════════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 380px) {
+  .brand-text h1 {
+    font-size: 0.92rem;
+  }
+
+  .btn-mobile-quick span {
+    display: none;
+  }
+
+  .btn-mobile-quick {
+    padding: 7px 9px !important;
+  }
+
+  .m-day-tab {
+    min-width: 48px;
+    padding: 6px 8px;
+    font-size: 0.72rem;
+  }
+}
+
 
 

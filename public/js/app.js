@@ -62,6 +62,43 @@ document.addEventListener('DOMContentLoaded', () => {
   Reservations.init();
   ExcelExport.init();
 
+  // Menú Hamburguesa y Navegación Móvil
+  const btnMobileMenu = document.getElementById('btn-mobile-menu');
+  const headerMeta = document.querySelector('.header-meta');
+  const btnAddModalMobile = document.getElementById('btn-add-modal-mobile');
+
+  if (btnMobileMenu && headerMeta) {
+    btnMobileMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = headerMeta.classList.toggle('mobile-open');
+      btnMobileMenu.setAttribute('aria-expanded', isOpen);
+    });
+
+    // Cerrar menú móvil al hacer clic afuera
+    document.addEventListener('click', (e) => {
+      if (!headerMeta.contains(e.target) && !btnMobileMenu.contains(e.target)) {
+        headerMeta.classList.remove('mobile-open');
+        btnMobileMenu.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    // Cerrar menú móvil al pulsar cualquier botón de acción
+    headerMeta.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        headerMeta.classList.remove('mobile-open');
+        btnMobileMenu.setAttribute('aria-expanded', 'false');
+      });
+    });
+  }
+
+  // Botón rápido de reserva para celulares
+  if (btnAddModalMobile) {
+    btnAddModalMobile.addEventListener('click', () => {
+      const desktopAddBtn = document.getElementById('btn-add-modal');
+      if (desktopAddBtn) desktopAddBtn.click();
+    });
+  }
+
   // Registro de Service Worker (PWA)
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js')
