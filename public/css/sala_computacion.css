@@ -860,6 +860,49 @@ select:not(.month-select):focus {
   text-decoration: underline;
 }
 
+/* Indicador de Sesión de Usuario y Botón Salir */
+.teacher-session-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-surface-2, #F8FAFC);
+  border: 1px solid var(--border-light, #CBD5E1);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 0.82rem;
+  color: var(--text-secondary, #334155);
+}
+
+.teacher-session-name {
+  font-weight: 600;
+  color: var(--text-primary, #0B2545);
+  max-width: 170px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-logout {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #ffffff;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  padding: 4px 9px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #DC2626;
+  transition: all 0.2s ease;
+}
+
+.btn-logout:hover {
+  background: #FEF2F2;
+  border-color: #EF4444;
+  color: #B91C1C;
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    PANEL DE GESTIÓN DE DOCENTES Y USUARIOS (ADMINISTRADOR)
    ───────────────────────────────────────────────────────────────────────────── */

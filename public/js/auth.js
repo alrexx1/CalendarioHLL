@@ -43,6 +43,7 @@ const Auth = {
     this.isTeacher = false;
     API.clearSession();
     this.updateUI();
+    this.lockAccessWall();
   },
 
   updateUI() {
@@ -88,6 +89,20 @@ const Auth = {
         document.body.classList.remove('locked');
       }, 250);
     }
+  },
+
+  lockAccessWall() {
+    const wall = document.getElementById('access-wall');
+    if (wall) {
+      wall.classList.remove('hidden');
+      wall.style.opacity = '1';
+    }
+    document.body.classList.add('locked');
+
+    const passInput = document.getElementById('access-pass');
+    if (passInput) passInput.value = '';
+    const errorBox = document.getElementById('access-error');
+    if (errorBox) errorBox.textContent = '';
   },
 
   openChangePasswordModal(isMandatory = true) {
@@ -306,15 +321,21 @@ const Auth = {
     if (adminToggle) {
       adminToggle.addEventListener('change', (e) => {
         if (e.target.checked) {
-          e.target.checked = false;
-          if (this.isAdmin) {
-            e.target.checked = true;
+          // Si el usuario autenticado tiene rol de Administrador
+          if (this.currentUser && this.currentUser.role === 'administrator') {
+            this.isAdmin = true;
+            this.updateUI();
+            showToast('🛡️ Modo Administrador activado');
           } else {
+            // Usuario docente solicitando acceso como administrador
+            e.target.checked = false;
             this.openAdminLoginModal();
           }
         } else {
-          this.clearSession();
-          showToast('Sesión cerrada');
+          // Cambiar a vista de Profesor sin cerrar la sesión
+          this.isAdmin = false;
+          this.updateUI();
+          showToast('👤 Modo Profesor activado');
         }
       });
     }
@@ -373,7 +394,7 @@ const Auth = {
     // 5. Botón Salir en Cabecera
     document.getElementById('btn-teacher-logout')?.addEventListener('click', () => {
       this.clearSession();
-      showToast('Sesión cerrada');
+      showToast('✓ Sesión cerrada exitosamente');
     });
 
     // 6. Recuperación de Contraseña (Paso 1 y Paso 2)
