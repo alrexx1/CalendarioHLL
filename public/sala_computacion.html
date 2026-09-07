@@ -21,29 +21,90 @@
   <link rel="stylesheet" href="css/sala_computacion.css" />
   <style>
     #access-wall {
-      position: fixed; inset: 0; z-index: 9999;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
       background: linear-gradient(135deg, #0B2545 0%, #0d3060 60%, #081d38 100%);
-      display: flex; align-items: center; justify-content: center; flex-direction: column;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
     }
-    #access-wall.hidden { display: none; }
+
+    #access-wall.hidden {
+      display: none;
+    }
+
     .access-card {
-      background: rgba(255,255,255,0.06); border: 1px solid rgba(212,175,55,0.25);
-      border-radius: 16px; padding: 40px 44px 36px; width: 100%; max-width: 440px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.4); backdrop-filter: blur(12px);
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(212, 175, 55, 0.25);
+      border-radius: 16px;
+      padding: 40px 44px 36px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(12px);
     }
-    .access-logo { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }
-    .access-logo img { width: 52px; height: 52px; object-fit: contain; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3)); }
-    .access-logo-text h1 { font-size: 1.05rem; font-weight: 700; color: #fff; margin: 0 0 2px; }
-    .access-logo-text span { font-size: 0.78rem; color: #D4AF37; font-weight: 500; }
-    .access-title { font-size: 1.15rem; font-weight: 700; color: #fff; margin: 0 0 4px; }
-    .access-subtitle { font-size: 0.82rem; color: rgba(255,255,255,0.65); margin: 0 0 24px; line-height: 1.4; }
-    
-    .access-form-group { margin-bottom: 16px; }
-    .access-form-group label { display: block; font-size: 0.78rem; font-weight: 600; color: rgba(255,255,255,0.8); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.4px; }
+
+    .access-logo {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .access-logo img {
+      width: 52px;
+      height: 52px;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
+    }
+
+    .access-logo-text h1 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+      margin: 0 0 2px;
+    }
+
+    .access-logo-text span {
+      font-size: 0.78rem;
+      color: #D4AF37;
+      font-weight: 500;
+    }
+
+    .access-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #fff;
+      margin: 0 0 4px;
+    }
+
+    .access-subtitle {
+      font-size: 0.82rem;
+      color: rgba(255, 255, 255, 0.65);
+      margin: 0 0 24px;
+      line-height: 1.4;
+    }
+
+    .access-form-group {
+      margin-bottom: 16px;
+    }
+
+    .access-form-group label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.8);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
     .access-form-group input {
       width: 100%;
       background: #FFFFFF !important;
-      border: 1.5px solid rgba(212,175,55,0.4) !important;
+      border: 1.5px solid rgba(212, 175, 55, 0.4) !important;
       border-radius: 8px !important;
       padding: 11px 14px !important;
       font-size: 0.95rem !important;
@@ -54,27 +115,68 @@
       box-sizing: border-box !important;
       transition: border-color 0.15s, box-shadow 0.15s !important;
     }
+
     .access-form-group input::placeholder {
       color: #94A3B8 !important;
       -webkit-text-fill-color: #94A3B8 !important;
     }
+
     .access-form-group input:focus {
       border-color: #D4AF37 !important;
-      box-shadow: 0 0 0 3px rgba(212,175,55,0.25) !important;
+      box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.25) !important;
     }
+
     input:-webkit-autofill,
-    input:-webkit-autofill:hover, 
+    input:-webkit-autofill:hover,
     input:-webkit-autofill:focus,
     input:-webkit-autofill:active {
       -webkit-box-shadow: 0 0 0 30px #FFFFFF inset !important;
       -webkit-text-fill-color: #0F172A !important;
     }
-    .access-btn { width: 100%; background: linear-gradient(135deg, #D4AF37, #c49b28); color: #0B2545; border: none; border-radius: 9px; padding: 12px; font-size: 0.95rem; font-weight: 700; cursor: pointer; margin-top: 8px; transition: opacity 0.15s, transform 0.1s; }
-    .access-btn:hover { opacity: 0.92; transform: translateY(-1px); }
-    .access-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
-    #access-error { font-size: 0.82rem; color: #ff8a8a; margin-top: 10px; min-height: 18px; text-align: center; }
-    .access-footer { font-size: 0.75rem; color: rgba(255,255,255,0.4); text-align: center; margin-top: 24px; }
-    body.locked > *:not(#access-wall) { visibility: hidden; }
+
+    .access-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #D4AF37, #c49b28);
+      color: #0B2545;
+      border: none;
+      border-radius: 9px;
+      padding: 12px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    .access-btn:hover {
+      opacity: 0.92;
+      transform: translateY(-1px);
+    }
+
+    .access-btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    #access-error {
+      font-size: 0.82rem;
+      color: #ff8a8a;
+      margin-top: 10px;
+      min-height: 18px;
+      text-align: center;
+    }
+
+    .access-footer {
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.4);
+      text-align: center;
+      margin-top: 24px;
+    }
+
+    body.locked>*:not(#access-wall) {
+      visibility: hidden;
+    }
   </style>
 </head>
 
@@ -86,17 +188,20 @@
   <div id="access-wall">
     <div class="access-card">
       <div class="access-logo">
-        <img src="https://www.colegiohll.cl/wp-content/uploads/2022/03/InsigniaColegioSD3.png" alt="Insignia Colegio HLL" />
+        <img src="https://www.colegiohll.cl/wp-content/uploads/2022/03/InsigniaColegioSD3.png"
+          alt="Insignia Colegio HLL" />
         <div class="access-logo-text">
           <h1>Colegio Santo Domingo</h1>
           <span>Helen Lee Lassen</span>
         </div>
       </div>
       <p class="access-title">Intranet Institucional</p>
-      <p class="access-subtitle">Ingrese con sus credenciales institucionales para gestionar y reservar la Sala de Computación.</p>
+      <p class="access-subtitle">Ingrese con sus credenciales institucionales para gestionar y reservar la Sala de
+        Computación.</p>
 
       <!-- Selector de Pestañas: Login vs Registro Docente -->
-      <div class="auth-tabs" style="display:flex; gap:8px; margin-bottom:18px; background:rgba(0,0,0,0.25); padding:4px; border-radius:10px;">
+      <div class="auth-tabs"
+        style="display:flex; gap:8px; margin-bottom:18px; background:rgba(0,0,0,0.25); padding:4px; border-radius:10px;">
         <button type="button" id="tab-login" class="auth-tab-btn active"
           style="flex:1; padding:9px; border:none; border-radius:7px; background:rgba(212,175,55,0.25); color:#D4AF37; font-weight:700; font-size:.82rem; cursor:pointer; transition:all .2s;">
           Iniciar Sesión
@@ -125,11 +230,12 @@
       <form id="access-register-form" novalidate autocomplete="on" style="display:none;">
         <div class="access-form-group">
           <label for="reg-name">Nombre Completo</label>
-          <input type="text" id="reg-name" placeholder="Ej: Melissa Bozzo" autocomplete="name" required />
+          <input type="text" id="reg-name" placeholder="Ej: Alejandro Nilo" autocomplete="name" required />
         </div>
         <div class="access-form-group">
           <label for="reg-email">Correo Institucional (@colegiohll.cl)</label>
-          <input type="email" id="reg-email" placeholder="nombre.apellido@colegiohll.cl" autocomplete="username" required />
+          <input type="email" id="reg-email" placeholder="nombre.apellido@colegiohll.cl" autocomplete="username"
+            required />
         </div>
         <div class="access-form-group">
           <label for="reg-pass">Crear Contraseña (mínimo 8 caracteres)</label>
@@ -139,7 +245,8 @@
           <label for="reg-confirm">Confirmar Contraseña</label>
           <input type="password" id="reg-confirm" placeholder="••••••••" autocomplete="new-password" required />
         </div>
-        <div id="reg-error" class="form-error" style="font-size:0.82rem; color:#ff8a8a; margin-top:6px; min-height:16px; text-align:center;"></div>
+        <div id="reg-error" class="form-error"
+          style="font-size:0.82rem; color:#ff8a8a; margin-top:6px; min-height:16px; text-align:center;"></div>
         <button type="submit" class="access-btn" id="reg-submit">Crear Cuenta y Entrar</button>
       </form>
 
@@ -229,9 +336,12 @@
         </button>
 
         <!-- Indicador de Sesión de Usuario -->
-        <div id="teacher-session-info" style="display:none; align-items:center; gap:8px; font-size:.82rem; color:var(--text-secondary);">
+        <div id="teacher-session-info"
+          style="display:none; align-items:center; gap:8px; font-size:.82rem; color:var(--text-secondary);">
           <span id="teacher-session-name">Docente</span>
-          <button id="btn-teacher-logout" style="background:none; border:1px solid var(--border-light); border-radius:6px; padding:3px 8px; font-size:.75rem; cursor:pointer; color:var(--text-muted);" title="Cerrar sesión">Salir</button>
+          <button id="btn-teacher-logout"
+            style="background:none; border:1px solid var(--border-light); border-radius:6px; padding:3px 8px; font-size:.75rem; cursor:pointer; color:var(--text-muted);"
+            title="Cerrar sesión">Salir</button>
         </div>
 
         <!-- Botón Nueva Reserva -->
@@ -423,7 +533,8 @@
           </div>
           <div class="form-group">
             <label for="admin-password">Contraseña <span class="required">*</span></label>
-            <input type="password" id="admin-password" placeholder="••••••••" autocomplete="current-password" required />
+            <input type="password" id="admin-password" placeholder="••••••••" autocomplete="current-password"
+              required />
           </div>
 
           <div id="admin-login-error" class="form-error" role="alert"></div>
@@ -478,7 +589,8 @@
           <div id="change-password-error" class="form-error" role="alert"></div>
 
           <div class="form-actions" style="justify-content: stretch;">
-            <button type="submit" class="btn-primary" id="change-password-submit" style="width:100%; justify-content:center;">
+            <button type="submit" class="btn-primary" id="change-password-submit"
+              style="width:100%; justify-content:center;">
               Guardar Contraseña y Continuar
             </button>
           </div>

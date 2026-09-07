@@ -6,6 +6,7 @@
  */
 
 const db = require('../db');
+const emailService = require('../services/emailService');
 
 /**
  * Obtiene todas las reservas de un mes organizadas por semana y día
@@ -79,6 +80,9 @@ async function createOrUpdateReserva(req, res) {
     }
 
     const pool = db.getPool();
+    let savedSource = 'local';
+    let savedId = null;
+
     if (pool && db.isNeonConnected()) {
       const query = `
         INSERT INTO reservas (year_month, week_idx, day, slot, docente, curso, nota, is_blocked, user_email, updated_at)
@@ -105,34 +109,47 @@ async function createOrUpdateReserva(req, res) {
         userEmail || ''
       ]);
 
-      return res.json({
-        success: true,
-        id: result.rows[0]?.id,
-        message: isBlocked ? 'Bloqueo institucional registrado' : 'Reserva guardada con éxito',
-        source: 'neon'
-      });
+      savedSource = 'neon';
+      savedId = result.rows[0]?.id;
+    } else {
+      // Fallback local
+      const localDb = db.getLocalJson();
+      if (!localDb[yearMonth]) localDb[yearMonth] = [];
+      const w = parseInt(weekIdx, 10);
+      while (localDb[yearMonth].length <= w) localDb[yearMonth].push({});
+      if (!localDb[yearMonth][w][day]) localDb[yearMonth][w][day] = {};
+
+      localDb[yearMonth][w][day][slot] = {
+        docente: docente || (isBlocked ? '🔒 ADMIN' : ''),
+        curso: curso || (isBlocked ? 'Bloqueo Institucional' : ''),
+        nota: nota || '',
+        isBlocked: Boolean(isBlocked),
+        userEmail: userEmail || ''
+      };
+      db.saveLocalJson(localDb);
     }
 
-    // Fallback local
-    const localDb = db.getLocalJson();
-    if (!localDb[yearMonth]) localDb[yearMonth] = [];
-    const w = parseInt(weekIdx, 10);
-    while (localDb[yearMonth].length <= w) localDb[yearMonth].push({});
-    if (!localDb[yearMonth][w][day]) localDb[yearMonth][w][day] = {};
-
-    localDb[yearMonth][w][day][slot] = {
-      docente: docente || (isBlocked ? '🔒 ADMIN' : ''),
-      curso: curso || (isBlocked ? 'Bloqueo Institucional' : ''),
-      nota: nota || '',
-      isBlocked: Boolean(isBlocked),
-      userEmail: userEmail || ''
-    };
-    db.saveLocalJson(localDb);
+    // Notificación por correo asíncrona (no retrasa la respuesta HTTP)
+    emailService.sendReservationCreatedNotification({
+      reservation: {
+        docente: docente || (isBlocked ? '🔒 ADMIN' : ''),
+        curso: curso || (isBlocked ? 'Bloqueo Institucional' : ''),
+        nota: nota || '',
+        isBlocked: Boolean(isBlocked),
+        userEmail: userEmail || ''
+      },
+      day,
+      slot,
+      weekIdx,
+      yearMonth,
+      createdBy: req.user?.name || docente
+    }).catch(e => console.warn('Aviso email:', e.message));
 
     return res.json({
       success: true,
-      message: 'Reserva guardada localmente',
-      source: 'local'
+      id: savedId,
+      message: isBlocked ? 'Bloqueo institucional registrado' : 'Reserva guardada con éxito',
+      source: savedSource
     });
   } catch (err) {
     console.error('Error en createOrUpdateReserva:', err.message);
@@ -141,7 +158,7 @@ async function createOrUpdateReserva(req, res) {
 }
 
 /**
- * Elimina una reserva o desbloquea un horario
+ * Elimina una reserva o desbloquea un horario y notifica por correo
  */
 async function deleteReserva(req, res) {
   try {
@@ -155,31 +172,55 @@ async function deleteReserva(req, res) {
     }
 
     const pool = db.getPool();
+    let existingResv = null;
+
     if (pool && db.isNeonConnected()) {
+      // Consultar datos de la reserva antes de eliminarla para incluir en el correo
+      const checkRes = await pool.query(`
+        SELECT docente, curso, nota, is_blocked, user_email
+        FROM reservas
+        WHERE year_month = $1 AND week_idx = $2 AND day = $3 AND slot = $4;
+      `, [yearMonth, parseInt(weekIdx, 10), day, slot]);
+
+      existingResv = checkRes.rows[0];
+
       await pool.query(`
         DELETE FROM reservas
         WHERE year_month = $1 AND week_idx = $2 AND day = $3 AND slot = $4;
       `, [yearMonth, parseInt(weekIdx, 10), day, slot]);
+    } else {
+      // Fallback local
+      const localDb = db.getLocalJson();
+      const w = parseInt(weekIdx, 10);
+      existingResv = localDb[yearMonth]?.[w]?.[day]?.[slot];
 
-      return res.json({
-        success: true,
-        message: 'Reserva o bloqueo eliminado con éxito',
-        source: 'neon'
-      });
+      if (localDb[yearMonth]?.[w]?.[day]?.[slot]) {
+        delete localDb[yearMonth][w][day][slot];
+        db.saveLocalJson(localDb);
+      }
     }
 
-    // Fallback local
-    const localDb = db.getLocalJson();
-    const w = parseInt(weekIdx, 10);
-    if (localDb[yearMonth]?.[w]?.[day]?.[slot]) {
-      delete localDb[yearMonth][w][day][slot];
-      db.saveLocalJson(localDb);
+    // Disparar correo de notificación de cancelación al Administrador
+    if (existingResv) {
+      emailService.sendReservationCancelledNotification({
+        reservation: {
+          docente: existingResv.docente,
+          curso: existingResv.curso,
+          nota: existingResv.nota,
+          userEmail: existingResv.user_email || existingResv.userEmail
+        },
+        day,
+        slot,
+        weekIdx,
+        yearMonth,
+        cancelledBy: req.user?.name || 'Usuario del sistema'
+      }).catch(e => console.warn('Aviso email:', e.message));
     }
 
     return res.json({
       success: true,
-      message: 'Eliminado localmente',
-      source: 'local'
+      message: 'Reserva o bloqueo eliminado con éxito',
+      source: pool && db.isNeonConnected() ? 'neon' : 'local'
     });
   } catch (err) {
     console.error('Error en deleteReserva:', err.message);
