@@ -24,9 +24,14 @@ async function initSchema() {
         name VARCHAR(150) NOT NULL,
         role VARCHAR(50) NOT NULL DEFAULT 'docente',
         must_change_password BOOLEAN DEFAULT TRUE,
+        reset_token VARCHAR(255) DEFAULT NULL,
+        reset_token_expires TIMESTAMPTZ DEFAULT NULL,
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       );
+
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255) DEFAULT NULL;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMPTZ DEFAULT NULL;
 
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
     `);

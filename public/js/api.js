@@ -88,6 +88,20 @@ const API = {
     });
   },
 
+  forgotPassword(email) {
+    return this.request('/api/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+  },
+
+  resetPassword({ email, resetCode, newPassword, confirmPassword }) {
+    return this.request('/api/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, resetCode, newPassword, confirmPassword })
+    });
+  },
+
   getProfile() {
     return this.request('/api/auth/me');
   },

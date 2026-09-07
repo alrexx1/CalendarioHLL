@@ -231,7 +231,68 @@ async function sendReservationCreatedNotification({ reservation, day, slot, week
   }
 }
 
+/**
+ * Enviar código/token de recuperación de contraseña al usuario
+ */
+async function sendPasswordResetEmail({ email, name, resetCode }) {
+  if (!transporter) {
+    console.warn('⚠️ [Email] Servicio SMTP no disponible para enviar código de recuperación.');
+    return false;
+  }
+
+  const subject = `[Colegio HLL] 🔑 Código de Recuperación de Contraseña: ${resetCode}`;
+  const contentHtml = `
+    <p style="font-size:15px; color:#334155; margin: 0 0 16px; line-height:1.6;">
+      Estimado/a <b>${name || 'Docente'}</b>,
+    </p>
+    <p style="font-size:14px; color:#475569; margin: 0 0 18px; line-height:1.5;">
+      Hemos recibido una solicitud para restablecer la contraseña de acceso a la Intranet y Sistema de Reservas de la Sala de Computación del Colegio Santo Domingo Helen Lee Lassen.
+    </p>
+    <div style="background:#F8FAFC; border:2px dashed #D4AF37; border-radius:10px; padding:20px; text-align:center; margin:22px 0;">
+      <span style="font-size:12px; color:#64748B; text-transform:uppercase; letter-spacing:1px; font-weight:700; display:block; margin-bottom:8px;">
+        Su Código de Verificación
+      </span>
+      <span style="font-size:32px; font-weight:800; color:#0B2545; letter-spacing:6px; font-family:monospace;">
+        ${resetCode}
+      </span>
+      <span style="font-size:12px; color:#DC2626; display:block; margin-top:8px; font-weight:600;">
+        ⏱️ Válido únicamente por 15 minutos
+      </span>
+    </div>
+    <p style="font-size:13px; color:#64748B; margin: 0 0 8px; line-height:1.5;">
+      Ingrese este código de 6 dígitos en la pantalla de recuperación del sistema para establecer su nueva contraseña de acceso.
+    </p>
+    <p style="font-size:12px; color:#94A3B8; margin: 16px 0 0; line-height:1.4; border-top:1px solid #E2E8F0; padding-top:12px;">
+      Si usted no solicitó este restablecimiento, puede ignorar este mensaje; su cuenta continuará protegida con su contraseña habitual.
+    </p>
+  `;
+
+  const html = getEmailTemplate({
+    title: 'Recuperación de Contraseña',
+    badgeColor: '#D4AF37',
+    badgeText: '🔑 Seguridad de Cuenta',
+    contentHtml
+  });
+
+  const mailOptions = {
+    from: `"Sistema Reservas HLL" <${smtpUser}>`,
+    to: email,
+    subject,
+    html
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`✉️ [Email] Código de recuperación enviado con éxito a ${email}`);
+    return true;
+  } catch (err) {
+    console.error(`❌ [Email] Error al enviar código de recuperación a ${email}:`, err.message);
+    throw err;
+  }
+}
+
 module.exports = {
   sendReservationCancelledNotification,
-  sendReservationCreatedNotification
+  sendReservationCreatedNotification,
+  sendPasswordResetEmail
 };

@@ -375,6 +375,164 @@ const Auth = {
       this.clearSession();
       showToast('Sesión cerrada');
     });
+
+    // 6. Recuperación de Contraseña (Paso 1 y Paso 2)
+    const forgotOverlay = document.getElementById('forgot-password-overlay');
+    const linkForgot = document.getElementById('link-forgot-password');
+    const adminLinkForgot = document.getElementById('admin-link-forgot');
+    const forgotClose = document.getElementById('forgot-password-close');
+    const forgotCancel = document.getElementById('forgot-cancel-btn');
+    const forgotBack = document.getElementById('forgot-back-btn');
+    const requestForm = document.getElementById('forgot-request-form');
+    const resetForm = document.getElementById('forgot-reset-form');
+    const requestErr = document.getElementById('forgot-request-error');
+    const resetErr = document.getElementById('forgot-reset-error');
+    const sendBtn = document.getElementById('forgot-send-btn');
+    const resetSubmitBtn = document.getElementById('forgot-submit-btn');
+
+    let recoveryEmail = '';
+
+    linkForgot?.addEventListener('click', () => {
+      const email = document.getElementById('access-user')?.value.trim() || '';
+      this.openForgotPasswordModal(email);
+    });
+
+    adminLinkForgot?.addEventListener('click', () => {
+      adminLoginOverlay?.classList.remove('open');
+      const email = document.getElementById('admin-email')?.value.trim() || '';
+      this.openForgotPasswordModal(email);
+    });
+
+    forgotClose?.addEventListener('click', () => this.closeForgotPasswordModal());
+    forgotCancel?.addEventListener('click', () => this.closeForgotPasswordModal());
+
+    forgotBack?.addEventListener('click', () => {
+      document.getElementById('forgot-step-1').style.display = 'block';
+      document.getElementById('forgot-step-2').style.display = 'none';
+      if (resetErr) resetErr.classList.remove('visible');
+    });
+
+    if (requestForm) {
+      requestForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (requestErr) requestErr.classList.remove('visible');
+
+        const email = document.getElementById('forgot-email').value.trim();
+        if (!email) {
+          requestErr.textContent = 'Por favor ingrese su correo institucional.';
+          requestErr.classList.add('visible');
+          return;
+        }
+
+        recoveryEmail = email;
+        const origText = sendBtn.textContent;
+        sendBtn.disabled = true;
+        sendBtn.textContent = 'Enviando código...';
+
+        try {
+          const res = await API.forgotPassword(email);
+          document.getElementById('forgot-step-1').style.display = 'none';
+          document.getElementById('forgot-step-2').style.display = 'block';
+
+          const sentMsg = document.getElementById('forgot-code-sent-msg');
+          if (sentMsg) {
+            sentMsg.textContent = res.message || `Código enviado a ${email}. Revise su bandeja de entrada.`;
+          }
+
+          document.getElementById('forgot-code').value = '';
+          document.getElementById('forgot-new-pass').value = '';
+          document.getElementById('forgot-confirm-pass').value = '';
+          document.getElementById('forgot-code').focus();
+        } catch (err) {
+          requestErr.textContent = err.message || 'Error al procesar la solicitud.';
+          requestErr.classList.add('visible');
+        } finally {
+          sendBtn.disabled = false;
+          sendBtn.textContent = origText;
+        }
+      });
+    }
+
+    if (resetForm) {
+      resetForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (resetErr) resetErr.classList.remove('visible');
+
+        const code = document.getElementById('forgot-code').value.trim();
+        const newPassword = document.getElementById('forgot-new-pass').value;
+        const confirmPassword = document.getElementById('forgot-confirm-pass').value;
+
+        if (!code || code.length < 6) {
+          resetErr.textContent = 'Ingrese el código de verificación de 6 dígitos.';
+          resetErr.classList.add('visible');
+          return;
+        }
+
+        if (!newPassword || newPassword.length < 8) {
+          resetErr.textContent = 'La nueva contraseña debe tener mínimo 8 caracteres.';
+          resetErr.classList.add('visible');
+          return;
+        }
+
+        if (newPassword !== confirmPassword) {
+          resetErr.textContent = 'Las contraseñas no coinciden.';
+          resetErr.classList.add('visible');
+          return;
+        }
+
+        const origText = resetSubmitBtn.textContent;
+        resetSubmitBtn.disabled = true;
+        resetSubmitBtn.textContent = 'Restableciendo...';
+
+        try {
+          const res = await API.resetPassword({
+            email: recoveryEmail,
+            resetCode: code,
+            newPassword,
+            confirmPassword
+          });
+
+          this.closeForgotPasswordModal();
+          this.setUserSession(res.user, res.token);
+          this.unlockAccessWall();
+
+          showToast(`✓ Contraseña restablecida. Bienvenido/a, ${res.user.name}`);
+        } catch (err) {
+          resetErr.textContent = err.message || 'Error al restablecer la contraseña.';
+          resetErr.classList.add('visible');
+        } finally {
+          resetSubmitBtn.disabled = false;
+          resetSubmitBtn.textContent = origText;
+        }
+      });
+    }
+  },
+
+  openForgotPasswordModal(prefilledEmail = '') {
+    const overlay = document.getElementById('forgot-password-overlay');
+    if (!overlay) return;
+
+    document.getElementById('forgot-step-1').style.display = 'block';
+    document.getElementById('forgot-step-2').style.display = 'none';
+
+    const emailInput = document.getElementById('forgot-email');
+    if (emailInput) {
+      emailInput.value = prefilledEmail;
+    }
+
+    document.getElementById('forgot-request-error')?.classList.remove('visible');
+    document.getElementById('forgot-reset-error')?.classList.remove('visible');
+
+    overlay.classList.add('open');
+    if (emailInput) {
+      if (prefilledEmail) emailInput.select();
+      else emailInput.focus();
+    }
+  },
+
+  closeForgotPasswordModal() {
+    const overlay = document.getElementById('forgot-password-overlay');
+    if (overlay) overlay.classList.remove('open');
   },
 
   openAdminLoginModal() {

@@ -7,6 +7,7 @@
 
 const db = require('../db');
 const { verifyPassword, hashPassword, generateToken } = require('../utils/security');
+const emailService = require('../services/emailService');
 
 /**
  * Inicio de sesión unificado (Administrador / Docente)
@@ -219,6 +220,185 @@ async function registerTeacher(req, res) {
 }
 
 /**
+ * Solicitar código de recuperación de contraseña vía correo electrónico
+ */
+async function forgotPassword(req, res) {
+  const email = (req.body.email || '').toLowerCase().trim();
+
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({
+      success: false,
+      message: 'Por favor ingrese un correo electrónico válido.'
+    });
+  }
+
+  const pool = db.getPool();
+  if (!pool || !db.isNeonConnected()) {
+    return res.status(500).json({
+      success: false,
+      message: 'Servicio de base de datos no disponible temporalmente.'
+    });
+  }
+
+  try {
+    const userRes = await pool.query(
+      `SELECT id, email, name, role FROM users WHERE email = $1;`,
+      [email]
+    );
+
+    if (userRes.rows.length === 0) {
+      // Por seguridad evitamos enumeración de correos
+      return res.json({
+        success: true,
+        message: 'Si el correo ingresado está registrado, se enviará un código de verificación en breve.'
+      });
+    }
+
+    const user = userRes.rows[0];
+
+    // Generar código numérico de 6 dígitos
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos
+
+    await pool.query(`
+      UPDATE users
+      SET reset_token = $1,
+          reset_token_expires = $2,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = $3;
+    `, [resetCode, expiresAt, user.id]);
+
+    // Enviar código por correo
+    await emailService.sendPasswordResetEmail({
+      email: user.email,
+      name: user.name,
+      resetCode
+    });
+
+    return res.json({
+      success: true,
+      message: `Hemos enviado un código de verificación de 6 dígitos a ${user.email}.`
+    });
+  } catch (err) {
+    console.error('Error en forgotPassword:', err.message);
+    return res.status(500).json({
+      success: false,
+      message: 'No fue posible procesar la solicitud de recuperación. Intente más tarde.'
+    });
+  }
+}
+
+/**
+ * Restablecer contraseña con código de verificación
+ */
+async function resetPassword(req, res) {
+  const email = (req.body.email || '').toLowerCase().trim();
+  const resetCode = (req.body.resetCode || req.body.code || '').trim();
+  const { newPassword, confirmPassword } = req.body;
+
+  if (!email || !resetCode || !newPassword) {
+    return res.status(400).json({
+      success: false,
+      message: 'Todos los campos son obligatorios.'
+    });
+  }
+
+  if (newPassword.length < 8) {
+    return res.status(400).json({
+      success: false,
+      message: 'La nueva contraseña debe tener mínimo 8 caracteres.'
+    });
+  }
+
+  if (newPassword !== confirmPassword) {
+    return res.status(400).json({
+      success: false,
+      message: 'Las contraseñas no coinciden.'
+    });
+  }
+
+  const pool = db.getPool();
+  if (!pool || !db.isNeonConnected()) {
+    return res.status(500).json({
+      success: false,
+      message: 'Base de datos no disponible.'
+    });
+  }
+
+  try {
+    const userRes = await pool.query(`
+      SELECT id, email, name, role, reset_token, reset_token_expires
+      FROM users
+      WHERE email = $1;
+    `, [email]);
+
+    if (userRes.rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Código de verificación inválido o usuario no encontrado.'
+      });
+    }
+
+    const user = userRes.rows[0];
+
+    if (!user.reset_token || user.reset_token !== resetCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'El código de verificación ingresado es incorrecto.'
+      });
+    }
+
+    if (!user.reset_token_expires || new Date(user.reset_token_expires) < new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: 'El código de verificación ha expirado. Solicite uno nuevo.'
+      });
+    }
+
+    // Hashear nueva contraseña
+    const newHash = hashPassword(newPassword);
+
+    await pool.query(`
+      UPDATE users
+      SET password_hash = $1,
+          must_change_password = FALSE,
+          reset_token = NULL,
+          reset_token_expires = NULL,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2;
+    `, [newHash, user.id]);
+
+    // Generar token de sesión para inicio automático
+    const freshToken = generateToken({
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      mustChangePassword: false
+    });
+
+    console.log(`🔑 [Seguridad] Contraseña restablecida con éxito para: ${user.email}`);
+
+    return res.json({
+      success: true,
+      message: '¡Contraseña restablecida exitosamente!',
+      token: freshToken,
+      user: {
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (err) {
+    console.error('Error en resetPassword:', err.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Error interno al restablecer la contraseña.'
+    });
+  }
+}
+
+/**
  * Verifica la validez de la sesión actual
  */
 function verifySession(req, res) {
@@ -232,5 +412,7 @@ module.exports = {
   login,
   changePassword,
   registerTeacher,
+  forgotPassword,
+  resetPassword,
   verifySession
 };

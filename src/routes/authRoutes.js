@@ -20,6 +20,10 @@ router.post('/change-password', requireAuth, authController.changePassword);
 // Registro de docentes institucionales
 router.post('/register-teacher', authController.registerTeacher);
 
+// Recuperación y restablecimiento de contraseña
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/reset-password', authController.resetPassword);
+
 // Verificación de sesión actual
 router.get('/me', requireAuth, authController.verifySession);
 
