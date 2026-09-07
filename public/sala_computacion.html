@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Colegio Santo Domingo HLL — Sistema de Reservas de Sala de Computación</title>
+  <meta name="description"
+    content="Sistema web institucional para la visualización, gestión y reserva de la Sala de Computación del Colegio Santo Domingo Helen Lee Lassen." />
+
+  <!-- Tipografía Oficial: Inter de Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+
+  <!-- Librería SheetJS para Exportación a Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- Hoja de Estilos Institucional -->
+  <link rel="stylesheet" href="css/sala_computacion.css" />
+  <style>
+    #access-wall {
+      position: fixed; inset: 0; z-index: 9999;
+      background: linear-gradient(135deg, #0B2545 0%, #0d3060 60%, #081d38 100%);
+      display: flex; align-items: center; justify-content: center; flex-direction: column;
+    }
+    #access-wall.hidden { display: none; }
+    .access-card {
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(212,175,55,0.25);
+      border-radius: 16px; padding: 40px 44px 36px; width: 100%; max-width: 440px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4); backdrop-filter: blur(12px);
+    }
+    .access-logo { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }
+    .access-logo img { width: 52px; height: 52px; object-fit: contain; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3)); }
+    .access-logo-text h1 { font-size: 1.05rem; font-weight: 700; color: #fff; margin: 0 0 2px; }
+    .access-logo-text span { font-size: 0.78rem; color: #D4AF37; font-weight: 500; }
+    .access-title { font-size: 1.15rem; font-weight: 700; color: #fff; margin: 0 0 4px; }
+    .access-subtitle { font-size: 0.82rem; color: rgba(255,255,255,0.65); margin: 0 0 24px; line-height: 1.4; }
+    
+    .access-form-group { margin-bottom: 16px; }
+    .access-form-group label { display: block; font-size: 0.78rem; font-weight: 600; color: rgba(255,255,255,0.8); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.4px; }
+    .access-form-group input {
+      width: 100%;
+      background: #FFFFFF !important;
+      border: 1.5px solid rgba(212,175,55,0.4) !important;
+      border-radius: 8px !important;
+      padding: 11px 14px !important;
+      font-size: 0.95rem !important;
+      color: #0F172A !important;
+      -webkit-text-fill-color: #0F172A !important;
+      font-weight: 500 !important;
+      outline: none !important;
+      box-sizing: border-box !important;
+      transition: border-color 0.15s, box-shadow 0.15s !important;
+    }
+    .access-form-group input::placeholder {
+      color: #94A3B8 !important;
+      -webkit-text-fill-color: #94A3B8 !important;
+    }
+    .access-form-group input:focus {
+      border-color: #D4AF37 !important;
+      box-shadow: 0 0 0 3px rgba(212,175,55,0.25) !important;
+    }
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover, 
+    input:-webkit-autofill:focus,
+    input:-webkit-autofill:active {
+      -webkit-box-shadow: 0 0 0 30px #FFFFFF inset !important;
+      -webkit-text-fill-color: #0F172A !important;
+    }
+    .access-btn { width: 100%; background: linear-gradient(135deg, #D4AF37, #c49b28); color: #0B2545; border: none; border-radius: 9px; padding: 12px; font-size: 0.95rem; font-weight: 700; cursor: pointer; margin-top: 8px; transition: opacity 0.15s, transform 0.1s; }
+    .access-btn:hover { opacity: 0.92; transform: translateY(-1px); }
+    .access-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+    #access-error { font-size: 0.82rem; color: #ff8a8a; margin-top: 10px; min-height: 18px; text-align: center; }
+    .access-footer { font-size: 0.75rem; color: rgba(255,255,255,0.4); text-align: center; margin-top: 24px; }
+    body.locked > *:not(#access-wall) { visibility: hidden; }
+  </style>
+</head>
+
+<body class="locked">
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       PANTALLA DE ACCESO INSTITUCIONAL (SIN CREDENCIALES DE PRUEBA)
+  ═══════════════════════════════════════════════════════════════════ -->
+  <div id="access-wall">
+    <div class="access-card">
+      <div class="access-logo">
+        <img src="https://www.colegiohll.cl/wp-content/uploads/2022/03/InsigniaColegioSD3.png" alt="Insignia Colegio HLL" />
+        <div class="access-logo-text">
+          <h1>Colegio Santo Domingo</h1>
+          <span>Helen Lee Lassen</span>
+        </div>
+      </div>
+      <p class="access-title">Intranet Institucional</p>
+      <p class="access-subtitle">Ingrese con sus credenciales institucionales para gestionar y reservar la Sala de Computación.</p>
+
+      <!-- Selector de Pestañas: Login vs Registro Docente -->
+      <div class="auth-tabs" style="display:flex; gap:8px; margin-bottom:18px; background:rgba(0,0,0,0.25); padding:4px; border-radius:10px;">
+        <button type="button" id="tab-login" class="auth-tab-btn active"
+          style="flex:1; padding:9px; border:none; border-radius:7px; background:rgba(212,175,55,0.25); color:#D4AF37; font-weight:700; font-size:.82rem; cursor:pointer; transition:all .2s;">
+          Iniciar Sesión
+        </button>
+        <button type="button" id="tab-register" class="auth-tab-btn"
+          style="flex:1; padding:9px; border:none; border-radius:7px; background:transparent; color:rgba(255,255,255,0.6); font-weight:600; font-size:.82rem; cursor:pointer; transition:all .2s;">
+          Registro Docente
+        </button>
+      </div>
+
+      <!-- Formulario 1: Inicio de Sesión -->
+      <form id="access-form" novalidate autocomplete="on">
+        <div class="access-form-group">
+          <label for="access-user">Correo Institucional</label>
+          <input type="email" id="access-user" placeholder="usuario@colegiohll.cl" autocomplete="username" required />
+        </div>
+        <div class="access-form-group">
+          <label for="access-pass">Contraseña</label>
+          <input type="password" id="access-pass" placeholder="••••••••" autocomplete="current-password" required />
+        </div>
+        <div id="access-error"></div>
+        <button type="submit" class="access-btn" id="access-submit">Ingresar al Sistema</button>
+      </form>
+
+      <!-- Formulario 2: Auto-Registro de Docentes (@colegiohll.cl) -->
+      <form id="access-register-form" novalidate autocomplete="on" style="display:none;">
+        <div class="access-form-group">
+          <label for="reg-name">Nombre Completo</label>
+          <input type="text" id="reg-name" placeholder="Ej: Melissa Bozzo" autocomplete="name" required />
+        </div>
+        <div class="access-form-group">
+          <label for="reg-email">Correo Institucional (@colegiohll.cl)</label>
+          <input type="email" id="reg-email" placeholder="nombre.apellido@colegiohll.cl" autocomplete="username" required />
+        </div>
+        <div class="access-form-group">
+          <label for="reg-pass">Crear Contraseña (mínimo 8 caracteres)</label>
+          <input type="password" id="reg-pass" placeholder="••••••••" autocomplete="new-password" required />
+        </div>
+        <div class="access-form-group">
+          <label for="reg-confirm">Confirmar Contraseña</label>
+          <input type="password" id="reg-confirm" placeholder="••••••••" autocomplete="new-password" required />
+        </div>
+        <div id="reg-error" class="form-error" style="font-size:0.82rem; color:#ff8a8a; margin-top:6px; min-height:16px; text-align:center;"></div>
+        <button type="submit" class="access-btn" id="reg-submit">Crear Cuenta y Entrar</button>
+      </form>
+
+      <p class="access-footer">&copy; Colegio Santo Domingo Helen Lee Lassen &mdash; Todos los derechos reservados</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       CABECERA INSTITUCIONAL (HEADER)
+  ═══════════════════════════════════════════════════════════════════ -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-logo">
+          <img src="https://www.colegiohll.cl/wp-content/uploads/2022/03/InsigniaColegioSD3.png"
+            alt="Insignia Colegio HLL" class="hll-logo" />
+        </div>
+        <div class="brand-text">
+          <h1>Colegio Santo Domingo</h1>
+          <span class="sub-brand">Helen Lee Lassen — Reserva de Sala de Computación</span>
+        </div>
+      </div>
+
+      <div class="header-meta">
+        <!-- Indicador de Estado de la Base de Datos Neon -->
+        <div id="neon-badge" class="neon-badge offline" title="Verificando conexión...">
+          <span class="neon-dot"></span>
+          <span id="neon-status-text">Conectando...</span>
+        </div>
+
+        <!-- Switch de Modo Administrador -->
+        <div class="admin-switch-wrapper" title="Activar o desactivar permisos de Administrador">
+          <label class="switch">
+            <input type="checkbox" id="admin-toggle" />
+            <span class="slider round"></span>
+          </label>
+          <span class="admin-label">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5">
+              <rect x="3" y="11" width="18" height="11" rx="2" />
+              <path d="M7 11V7a5 5 0 0110 0v4" />
+            </svg>
+            Modo Admin
+          </span>
+        </div>
+
+        <!-- Selector de Mes y Año -->
+        <div class="month-selector-wrapper">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+          <select id="month-select" class="month-select" title="Seleccionar Mes">
+            <option value="01">Enero</option>
+            <option value="02">Febrero</option>
+            <option value="03">Marzo</option>
+            <option value="04">Abril</option>
+            <option value="05">Mayo</option>
+            <option value="06">Junio</option>
+            <option value="07">Julio</option>
+            <option value="08" selected>Agosto</option>
+            <option value="09">Septiembre</option>
+            <option value="10">Octubre</option>
+            <option value="11">Noviembre</option>
+            <option value="12">Diciembre</option>
+          </select>
+          <select id="year-select" class="month-select year-select" title="Seleccionar Año">
+            <option value="2025">2025</option>
+            <option value="2026" selected>2026</option>
+            <option value="2027">2027</option>
+            <option value="2028">2028</option>
+            <option value="2029">2029</option>
+            <option value="2030">2030</option>
+          </select>
+        </div>
+
+        <!-- Botón Exportar a Excel (Exclusivo Administrador) -->
+        <button id="btn-export-excel" class="btn-secondary admin-only-btn"
+          title="Exportar planillas del mes actual a Excel (.xlsx)" style="display:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Exportar
+        </button>
+
+        <!-- Indicador de Sesión de Usuario -->
+        <div id="teacher-session-info" style="display:none; align-items:center; gap:8px; font-size:.82rem; color:var(--text-secondary);">
+          <span id="teacher-session-name">Docente</span>
+          <button id="btn-teacher-logout" style="background:none; border:1px solid var(--border-light); border-radius:6px; padding:3px 8px; font-size:.75rem; cursor:pointer; color:var(--text-muted);" title="Cerrar sesión">Salir</button>
+        </div>
+
+        <!-- Botón Nueva Reserva -->
+        <button id="btn-add-modal" class="btn-primary" title="Crear una nueva reserva o bloqueo">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          Nueva Reserva
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       CONTENIDO PRINCIPAL
+  ═══════════════════════════════════════════════════════════════════ -->
+  <main class="main">
+    <!-- Navegación de Semanas -->
+    <section class="week-nav" aria-label="Selección de semana">
+      <button id="btn-prev" class="week-arrow" title="Ir a la semana anterior">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+      </button>
+      <div class="week-tabs" id="week-tabs" role="tablist"></div>
+      <button id="btn-next" class="week-arrow" title="Ir a la semana siguiente">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+      </button>
+    </section>
+
+    <!-- Banner Estadístico -->
+    <div class="week-banner" id="week-banner">
+      <div class="week-banner-left">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+        </svg>
+        <span id="week-range-label">Semana seleccionada...</span>
+      </div>
+      <div class="week-stats" id="week-stats"></div>
+    </div>
+
+    <!-- Grilla del Calendario -->
+    <div class="calendar-wrapper">
+      <div class="calendar-grid" id="calendar-grid"></div>
+    </div>
+
+    <!-- Leyenda -->
+    <div class="legend">
+      <span class="legend-title">Leyenda:</span>
+      <div class="legend-item"><span class="legend-dot occupied"></span> Reservado (Clases)</div>
+      <div class="legend-item"><span class="legend-dot free"></span> Disponible</div>
+      <div class="legend-item"><span class="legend-dot break"></span> Recreo / Almuerzo</div>
+    </div>
+  </main>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       MODAL: NUEVA RESERVA / BLOQUEO
+  ═══════════════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal" id="modal">
+      <div class="modal-header">
+        <div class="modal-icon">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+        </div>
+        <h2 id="modal-title">Nueva Reserva / Bloqueo</h2>
+        <button class="modal-close" id="modal-close" aria-label="Cerrar ventana">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="reservation-form" novalidate>
+          <div class="form-group admin-only-field" style="display:none;">
+            <label for="f-tipo">Acci&oacute;n a realizar <span class="required">*</span></label>
+            <select id="f-tipo" style="background:#FDF8E7; border-color:#D4AF37; font-weight:600; color:#0B2545;">
+              <option value="reserva">📌 Reservar horario para clase de docente</option>
+              <option value="bloqueo">🔒 Bloquear horario (Mantenimiento / Evento)</option>
+            </select>
+          </div>
+
+          <div class="form-row" id="docente-curso-row">
+            <div class="form-group">
+              <label for="f-docente">Docente Responsable <span class="required">*</span></label>
+              <input type="text" id="f-docente" placeholder="Ej: Melissa Bozzo" required />
+            </div>
+            <div class="form-group">
+              <label for="f-curso">Curso o Asignatura <span class="required">*</span></label>
+              <input type="text" id="f-curso" placeholder="Ej: 4B Eduten / 2M Lenguaje" required />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="f-semana">Semana <span class="required">*</span></label>
+              <select id="f-semana"></select>
+            </div>
+            <div class="form-group">
+              <label for="f-dia">D&iacute;a de la semana <span class="required">*</span></label>
+              <select id="f-dia">
+                <option value="mon">Lunes</option>
+                <option value="tue">Martes</option>
+                <option value="wed">Mi&eacute;rcoles</option>
+                <option value="thu">Jueves</option>
+                <option value="fri">Viernes</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="f-bloque">Bloque Horario <span class="required">*</span></label>
+            <select id="f-bloque">
+              <option value="08:00 - 08:45">08:00 – 08:45</option>
+              <option value="08:45 - 09:30">08:45 – 09:30</option>
+              <option value="09:30 - 10:15">09:30 – 10:15</option>
+              <option value="10:30 - 11:15">10:30 – 11:15</option>
+              <option value="11:15 - 12:00">11:15 – 12:00</option>
+              <option value="12:15 - 13:00">12:15 – 13:00</option>
+              <option value="13:00 - 13:45">13:00 – 13:45</option>
+              <option value="14:30 - 15:15">14:30 – 15:15</option>
+              <option value="15:15 - 16:00">15:15 – 16:00</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="f-nota">Observación o Nota (opcional)</label>
+            <input type="text" id="f-nota" placeholder="Ej: Uso de software específico o proyector" />
+          </div>
+
+          <div id="form-error" class="form-error" role="alert"></div>
+
+          <div class="form-actions">
+            <button type="button" class="btn-secondary" id="modal-cancel"
+              style="color:var(--text-primary); border-color:var(--border-strong);">Cancelar</button>
+            <button type="submit" class="btn-primary" id="form-submit">Guardar Registro</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       MODAL: DETALLE DE RESERVA
+  ═══════════════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="detail-overlay" role="dialog" aria-modal="true" aria-labelledby="detail-title">
+    <div class="modal modal-sm" id="detail-modal">
+      <div class="modal-header">
+        <div class="modal-icon">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="7" r="4" />
+            <path d="M2 21c0-5.5 4.5-9 10-9s10 3.5 10 9" />
+          </svg>
+        </div>
+        <h2 id="detail-title">Detalle de la Reserva</h2>
+        <button class="modal-close" id="detail-close" aria-label="Cerrar ventana">&times;</button>
+      </div>
+      <div class="modal-body" id="detail-body"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       MODAL: ACCESO DE ADMINISTRADOR (SIN DATOS DE PRUEBA)
+  ═══════════════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="admin-login-overlay" role="dialog" aria-modal="true"
+    aria-labelledby="admin-login-title">
+    <div class="modal modal-sm" id="admin-login-modal">
+      <div class="modal-header">
+        <div class="modal-icon">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5">
+            <rect x="3" y="11" width="18" height="11" rx="2" />
+            <path d="M7 11V7a5 5 0 0110 0v4" />
+          </svg>
+        </div>
+        <h2 id="admin-login-title">Acceso de Administrador</h2>
+        <button class="modal-close" id="admin-login-close" aria-label="Cerrar ventana">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="admin-login-form" novalidate>
+          <div class="form-group">
+            <label for="admin-email">Correo Institucional <span class="required">*</span></label>
+            <input type="email" id="admin-email" placeholder="admin@colegiohll.cl" autocomplete="username" required />
+          </div>
+          <div class="form-group">
+            <label for="admin-password">Contraseña <span class="required">*</span></label>
+            <input type="password" id="admin-password" placeholder="••••••••" autocomplete="current-password" required />
+          </div>
+
+          <div id="admin-login-error" class="form-error" role="alert"></div>
+
+          <div class="form-actions">
+            <button type="button" class="btn-secondary" id="admin-login-cancel"
+              style="color:var(--text-primary); border-color:var(--border-strong);">Cancelar</button>
+            <button type="submit" class="btn-primary">Ingresar como Admin</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       MODAL OBLIGATORIO: CAMBIO DE CONTRASEÑA EN PRIMER ACCESO
+  ═══════════════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="change-password-overlay" role="dialog" aria-modal="true"
+    aria-labelledby="change-password-title" data-mandatory="true">
+    <div class="modal modal-sm modal-mandatory" id="change-password-modal">
+      <div class="modal-header">
+        <div class="modal-icon" style="background:#FEF2F2; color:#DC2626; border-color:#FCA5A5;">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5">
+            <rect x="3" y="11" width="18" height="11" rx="2" />
+            <path d="M7 11V7a5 5 0 0110 0v4" />
+          </svg>
+        </div>
+        <h2 id="change-password-title" style="color:#0B2545;">Actualización de Contraseña</h2>
+      </div>
+      <div class="modal-body">
+        <div class="security-alert-box" id="change-password-alert">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span>Por seguridad institucional, debe reemplazar la contraseña temporal antes de utilizar el sistema.</span>
+        </div>
+
+        <form id="change-password-form" novalidate>
+          <div class="form-group">
+            <label for="new-password">Nueva Contraseña <span class="required">*</span></label>
+            <input type="password" id="new-password" placeholder="Mínimo 8 caracteres" required />
+            <span class="password-requirements">Debe tener al menos 8 caracteres.</span>
+          </div>
+
+          <div class="form-group">
+            <label for="confirm-password">Confirmar Nueva Contraseña <span class="required">*</span></label>
+            <input type="password" id="confirm-password" placeholder="Repita la nueva contraseña" required />
+          </div>
+
+          <div id="change-password-error" class="form-error" role="alert"></div>
+
+          <div class="form-actions" style="justify-content: stretch;">
+            <button type="submit" class="btn-primary" id="change-password-submit" style="width:100%; justify-content:center;">
+              Guardar Contraseña y Continuar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       CARGA DE MÓDULOS JAVASCRIPT FRONTEND
+  ═══════════════════════════════════════════════════════════════════ -->
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/calendar.js"></script>
+  <script src="js/reservations.js"></script>
+  <script src="js/excel.js"></script>
+  <script src="js/app.js"></script>
+</body>
+
+</html>

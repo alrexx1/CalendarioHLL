@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: calendario-hll-sala-computacion
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false # Pega tu cadena de conexión de Neon en el dashboard de Render

@@ -1,0 +1,26 @@
+{
+  "name": "calendario-hll-sala-computacion",
+  "version": "1.0.0",
+  "description": "Sistema de Reservas de Sala de Computación — Colegio Santo Domingo Helen Lee Lassen",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "colegio-hll",
+    "reservas",
+    "render",
+    "neon",
+    "postgresql",
+    "express"
+  ],
+  "author": "Colegio HLL",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "pg": "^8.13.3"
+  }
+}
