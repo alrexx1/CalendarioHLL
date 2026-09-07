@@ -31,6 +31,7 @@ router.get('/me', requireAuth, authController.verifySession);
 // Rutas Administrativas de Gestión de Usuarios y Docentes
 // ═══════════════════════════════════════════════════════════════════
 router.get('/users', requireAdmin, authController.getAllUsers);
+router.post('/users', requireAdmin, authController.createUser);
 router.patch('/users/:id/role', requireAdmin, authController.updateUserRole);
 router.post('/users/:id/reset-password', requireAdmin, authController.adminResetUserPassword);
 router.delete('/users/:id', requireAdmin, authController.deleteUser);

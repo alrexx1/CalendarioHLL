@@ -10,10 +10,12 @@ const Auth = {
   isAdmin: false,
   isTeacher: false,
   pendingSlot: null,
+  recoveryEmail: '',
 
   init() {
     this.bindEvents();
     this.restoreSession();
+    this.checkUrlAction();
   },
 
   restoreSession() {
@@ -506,8 +508,9 @@ const Auth = {
         resetSubmitBtn.textContent = 'Restableciendo...';
 
         try {
+          const targetEmail = this.recoveryEmail || recoveryEmail || document.getElementById('forgot-email')?.value.trim();
           const res = await API.resetPassword({
-            email: recoveryEmail,
+            email: targetEmail,
             resetCode: code,
             newPassword,
             confirmPassword
@@ -517,7 +520,7 @@ const Auth = {
           this.setUserSession(res.user, res.token);
           this.unlockAccessWall();
 
-          showToast(`✓ Contraseña restablecida. Bienvenido/a, ${res.user.name}`);
+          showToast(`✓ Contraseña establecida. Bienvenido/a, ${res.user.name}`);
         } catch (err) {
           resetErr.textContent = err.message || 'Error al restablecer la contraseña.';
           resetErr.classList.add('visible');
@@ -532,6 +535,8 @@ const Auth = {
   openForgotPasswordModal(prefilledEmail = '') {
     const overlay = document.getElementById('forgot-password-overlay');
     if (!overlay) return;
+
+    this.recoveryEmail = prefilledEmail;
 
     document.getElementById('forgot-step-1').style.display = 'block';
     document.getElementById('forgot-step-2').style.display = 'none';
@@ -554,6 +559,47 @@ const Auth = {
   closeForgotPasswordModal() {
     const overlay = document.getElementById('forgot-password-overlay');
     if (overlay) overlay.classList.remove('open');
+  },
+
+  checkUrlAction() {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const action = urlParams.get('action');
+      const email = (urlParams.get('email') || '').trim();
+      const code = (urlParams.get('code') || '').trim();
+
+      if (action === 'reset' && (email || code)) {
+        this.openForgotPasswordModal(email);
+        const step1 = document.getElementById('forgot-step-1');
+        const step2 = document.getElementById('forgot-step-2');
+        if (step1 && step2) {
+          step1.style.display = 'none';
+          step2.style.display = 'block';
+        }
+
+        this.recoveryEmail = email;
+
+        const codeInput = document.getElementById('forgot-code');
+        if (codeInput && code) {
+          codeInput.value = code;
+        }
+
+        const msgBox = document.getElementById('forgot-code-sent-msg');
+        if (msgBox) {
+          msgBox.textContent = `Activación de cuenta para ${email}. Ingrese su nueva contraseña a continuación:`;
+        }
+
+        const newPassInput = document.getElementById('forgot-new-pass');
+        if (newPassInput) {
+          setTimeout(() => newPassInput.focus(), 300);
+        }
+
+        // Limpiar URL sin refrescar la página
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    } catch (e) {
+      console.warn('Error al procesar parámetros de activación:', e);
+    }
   },
 
   openAdminLoginModal() {

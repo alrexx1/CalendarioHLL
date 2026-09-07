@@ -30,7 +30,7 @@ const Reservations = {
 
     semSel.value = String(weekIdx);
     diaSel.value = day || 'mon';
-    if (slot && bloqSel) bloqSel.value = slot;
+    this.updateSlotSelect(diaSel.value, slot);
 
     if (Auth.isAdmin) {
       docenteField.value = '';
@@ -62,6 +62,67 @@ const Reservations = {
     document.getElementById('modal-overlay')?.classList.remove('open');
   },
 
+  updateSlotSelect(day, targetSlot) {
+    const bloqSel = document.getElementById('f-bloque');
+    if (!bloqSel) return;
+    bloqSel.innerHTML = '';
+
+    if (day === 'fri') {
+      if (Auth.isAdmin) {
+        const allFri = [
+          { id: '08:00 - 08:45', label: '08:00 – 08:45 (Horario institucional)' },
+          { id: '08:45 - 09:30', label: '08:45 – 09:30 (Horario institucional)' },
+          { id: '09:30 - 10:15', label: '09:30 – 10:15 (Espacio sin bloque)' },
+          { id: '10:30 - 11:15', label: '10:30 – 11:15 (Bloque Viernes)' },
+          { id: '11:30 - 12:15', label: '11:30 – 12:15 (Bloque Viernes)' },
+          { id: '12:15 - 13:00', label: '12:15 – 13:00 (Horario institucional)' },
+          { id: '14:30 - 15:15', label: '14:30 – 15:15 (Tarde sin clases)' },
+          { id: '15:15 - 16:00', label: '15:15 – 16:00 (Tarde sin clases)' }
+        ];
+        allFri.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.id;
+          opt.textContent = s.label;
+          bloqSel.appendChild(opt);
+        });
+      } else {
+        [
+          { id: '10:30 - 11:15', label: '10:30 – 11:15 (Bloque Viernes)' },
+          { id: '11:30 - 12:15', label: '11:30 – 12:15 (Bloque Viernes)' }
+        ].forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.id;
+          opt.textContent = s.label;
+          bloqSel.appendChild(opt);
+        });
+      }
+    } else {
+      const standardSlots = [
+        '08:00 - 08:45',
+        '08:45 - 09:30',
+        '09:30 - 10:15',
+        '10:30 - 11:15',
+        '11:15 - 12:00',
+        '12:15 - 13:00',
+        '13:00 - 13:45',
+        '14:30 - 15:15',
+        '15:15 - 16:00'
+      ];
+      standardSlots.forEach(s => {
+        const isBlocked = Calendar.DEFAULT_BLOCKED_SLOTS?.[day]?.includes(s);
+        if (!Auth.isAdmin && isBlocked) return;
+        const opt = document.createElement('option');
+        opt.value = s;
+        opt.textContent = isBlocked ? `${s} (No disponible institucional)` : s;
+        bloqSel.appendChild(opt);
+      });
+    }
+
+    if (targetSlot) {
+      bloqSel.value = targetSlot;
+    }
+  },
+
   showError(msg) {
     const el = document.getElementById('form-error');
     if (el) {
@@ -84,14 +145,34 @@ const Reservations = {
     const body = document.getElementById('detail-body');
     if (!body) return;
 
+    const isSinBloque = (reservation.curso === 'Sin Bloque' || reservation.isSinBloque);
+    const isOverrideFree = (reservation.curso === 'DISPONIBLE');
+    let typeLabel = '📌 RESERVADO';
+    let typeStyle = '';
+    if (reservation.isBlocked) {
+      typeLabel = '🔒 NO DISPONIBLE';
+      typeStyle = 'background:#475569; color:#FFF;';
+    } else if (isSinBloque) {
+      typeLabel = '⚪ SIN BLOQUE';
+      typeStyle = 'background:#94A3B8; color:#FFF;';
+    } else if (isOverrideFree) {
+      typeLabel = '🟢 DISPONIBLE';
+      typeStyle = 'background:#059669; color:#FFF;';
+    }
+
+    let deleteBtnText = 'Eliminar reserva';
+    if (reservation.isBlocked) deleteBtnText = 'Desbloquear horario';
+    else if (isSinBloque) deleteBtnText = 'Eliminar "Sin bloque" / Restaurar';
+    else if (isOverrideFree) deleteBtnText = 'Restaurar bloqueo original';
+
     body.innerHTML = `
       <div class="detail-grid">
         <div class="detail-item">
-          <span class="detail-label">${reservation.isBlocked ? 'Estado' : 'Docente'}</span>
+          <span class="detail-label">${(reservation.isBlocked || isSinBloque) ? 'Estado' : 'Docente'}</span>
           <span class="detail-value">${reservation.docente}</span>
         </div>
         <div class="detail-item">
-          <span class="detail-label">${reservation.isBlocked ? 'Motivo' : 'Curso'}</span>
+          <span class="detail-label">${(reservation.isBlocked || isSinBloque) ? 'Motivo' : 'Curso'}</span>
           <span class="detail-value">${reservation.curso}</span>
         </div>
         <div class="detail-item">
@@ -108,8 +189,8 @@ const Reservations = {
         </div>
         <div class="detail-item">
           <span class="detail-label">Tipo</span>
-          <span class="detail-tag" style="${reservation.isBlocked ? 'background:#475569; color:#FFF;' : ''}">
-            ${reservation.isBlocked ? '🔒 BLOQUEADO' : '📌 RESERVADO'}
+          <span class="detail-tag" style="${typeStyle}">
+            ${typeLabel}
           </span>
         </div>
       </div>
@@ -118,7 +199,7 @@ const Reservations = {
         ${canDelete ? `
           <button class="btn-danger" id="delete-resv-btn">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-            ${reservation.isBlocked ? 'Desbloquear horario' : 'Eliminar reserva'}
+            ${deleteBtnText}
           </button>
         ` : `<span style="font-size:.78rem; color:var(--text-muted); align-self:center;">Solo un Administrador o el autor puede eliminar esta reserva</span>`}
         <button class="btn-secondary" id="detail-close-btn" style="margin-left:auto; color:var(--text-primary); border-color:var(--border-strong);">Cerrar</button>
@@ -187,11 +268,26 @@ const Reservations = {
           docRow.style.opacity = '0.6';
           document.getElementById('f-docente').value = '🔒 ADMIN';
           document.getElementById('f-curso').value = 'Bloqueo Institucional';
+        } else if (e.target.value === 'sin_bloque') {
+          docRow.style.opacity = '0.6';
+          document.getElementById('f-docente').value = '—';
+          document.getElementById('f-curso').value = 'Sin Bloque';
+        } else if (e.target.value === 'disponible') {
+          docRow.style.opacity = '0.6';
+          document.getElementById('f-docente').value = '—';
+          document.getElementById('f-curso').value = 'DISPONIBLE';
         } else {
           docRow.style.opacity = '1';
           document.getElementById('f-docente').value = Auth.isAdmin ? '' : (Auth.currentUser?.name || '');
           document.getElementById('f-curso').value = '';
         }
+      });
+    }
+
+    const diaSel = document.getElementById('f-dia');
+    if (diaSel) {
+      diaSel.addEventListener('change', () => {
+        this.updateSlotSelect(diaSel.value);
       });
     }
 
@@ -201,7 +297,11 @@ const Reservations = {
         e.preventDefault();
         this.hideError();
 
-        const isBloqueo = (tipoSelect && tipoSelect.value === 'bloqueo');
+        const tipo = (tipoSelect ? tipoSelect.value : 'reserva');
+        const isBloqueo = (tipo === 'bloqueo');
+        const isSinBloque = (tipo === 'sin_bloque');
+        const isDisponible = (tipo === 'disponible');
+
         let docente = document.getElementById('f-docente').value.trim();
         let curso = document.getElementById('f-curso').value.trim();
         const weekIdx = parseInt(document.getElementById('f-semana').value, 10);
@@ -212,13 +312,19 @@ const Reservations = {
         if (isBloqueo) {
           if (!docente) docente = '🔒 ADMIN';
           if (!curso) curso = 'Bloqueo Institucional';
+        } else if (isSinBloque) {
+          if (!docente) docente = '—';
+          if (!curso) curso = 'Sin Bloque';
+        } else if (isDisponible) {
+          if (!docente) docente = '—';
+          if (!curso) curso = 'DISPONIBLE';
         } else {
           if (!docente) { this.showError('Por favor ingresa el nombre del docente.'); return; }
           if (!curso) { this.showError('Por favor ingresa el curso o actividad.'); return; }
         }
 
         const w = Calendar.activeWeeks[weekIdx];
-        if (w.reservations[day]?.[slot]) {
+        if (!Auth.isAdmin && w.reservations[day]?.[slot]) {
           this.showError('Este bloque ya está ocupado o bloqueado. Elige otro horario.');
           return;
         }
@@ -231,6 +337,7 @@ const Reservations = {
           curso,
           nota,
           isBlocked: isBloqueo,
+          isSinBloque: isSinBloque,
           userCreated: true,
           userEmail
         };
@@ -244,7 +351,12 @@ const Reservations = {
 
         this.closeAddModal();
         Calendar.render();
-        showToast(isBloqueo ? '🔒 Bloqueo institucional registrado' : `✓ Reserva guardada para ${docente}`);
+
+        let toastMsg = `✓ Reserva guardada para ${docente}`;
+        if (isBloqueo) toastMsg = '🔒 Bloqueo institucional registrado';
+        else if (isSinBloque) toastMsg = '⚪ Horario configurado como "Sin bloque"';
+        else if (isDisponible) toastMsg = '🟢 Horario habilitado como Disponible';
+        showToast(toastMsg);
 
         try {
           await API.saveReserva({

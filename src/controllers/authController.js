@@ -6,6 +6,7 @@
  */
 
 const db = require('../db');
+const crypto = require('crypto');
 const { verifyPassword, hashPassword, generateToken } = require('../utils/security');
 const emailService = require('../services/emailService');
 
@@ -532,22 +533,25 @@ async function adminResetUserPassword(req, res) {
     if (mode === 'email') {
       const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
       const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+      const baseUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+      const resetLink = `${baseUrl}/sala_computacion.html?action=reset&email=${encodeURIComponent(user.email)}&code=${resetCode}`;
 
       await pool.query(
         `UPDATE users SET reset_token = $1, reset_token_expires = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3;`,
         [resetCode, expiresAt, user.id]
       );
 
-      // Enviar correo con plantilla oficial
+      // Enviar correo con plantilla oficial y enlace directo
       await emailService.sendPasswordResetEmail({
         email: user.email,
         name: user.name,
-        resetCode
+        resetCode,
+        resetLink
       });
 
       return res.json({
         success: true,
-        message: `Se envió un correo con el código de recuperación a ${user.email}.`
+        message: `Se envió un correo con el código y enlace de recuperación a ${user.email}.`
       });
     } else {
       // Modo 'temporary': Asignar contraseña temporal
@@ -578,6 +582,115 @@ async function adminResetUserPassword(req, res) {
   } catch (err) {
     console.error('Error al resetear contraseña como admin:', err.message);
     return res.status(500).json({ success: false, message: 'Error interno al restablecer contraseña.' });
+  }
+}
+
+/**
+ * Crea un nuevo usuario / docente desde el panel de administración
+ * Opciones disponibles:
+ * 1. mode === 'email': Envía enlace y código para que cree su propia contraseña
+ * 2. mode === 'temporary': Asigna contraseña provisional con cambio obligatorio al primer ingreso
+ */
+async function createUser(req, res) {
+  const email = (req.body.email || '').toLowerCase().trim();
+  const name = (req.body.name || '').trim();
+  const role = (req.body.role === 'administrator') ? 'administrator' : 'docente';
+  const mode = req.body.mode || 'email'; // 'email' | 'temporary'
+  const temporaryPassword = (req.body.temporaryPassword || '').trim();
+
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({
+      success: false,
+      message: 'Por favor ingrese un correo electrónico válido.'
+    });
+  }
+
+  // Si no se proporcionó nombre, tomar prefijo del correo
+  const displayName = name || email.split('@')[0];
+
+  const pool = db.getPool();
+  if (!pool || !db.isNeonConnected()) {
+    return res.status(500).json({ success: false, message: 'Base de datos no disponible.' });
+  }
+
+  try {
+    // Comprobar si ya existe el correo
+    const existing = await pool.query(`SELECT id, email, name FROM users WHERE email = $1;`, [email]);
+    if (existing.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `El correo "${email}" ya se encuentra registrado en el sistema.`
+      });
+    }
+
+    const baseUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+
+    if (mode === 'email') {
+      // 1. Enviar enlace por correo para que cree contraseña
+      const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 horas de vigencia para activación
+      // Hash temporal aleatorio imposible de adivinar para proteger la cuenta hasta que active
+      const randomSecret = crypto.randomBytes(32).toString('hex');
+      const dummyHash = hashPassword(randomSecret);
+
+      const result = await pool.query(`
+        INSERT INTO users (email, name, role, password_hash, reset_token, reset_token_expires, must_change_password)
+        VALUES ($1, $2, $3, $4, $5, $6, FALSE)
+        RETURNING id, email, name, role;
+      `, [email, displayName, role, dummyHash, resetCode, expiresAt]);
+
+      const newUser = result.rows[0];
+      const resetLink = `${baseUrl}/sala_computacion.html?action=reset&email=${encodeURIComponent(newUser.email)}&code=${resetCode}`;
+
+      // Enviar correo de bienvenida con enlace de activación
+      try {
+        await emailService.sendUserInvitationEmail({
+          email: newUser.email,
+          name: newUser.name,
+          resetCode,
+          resetLink,
+          role: newUser.role
+        });
+      } catch (mailErr) {
+        console.warn(`⚠️ [Admin] Usuario creado pero no se pudo enviar correo a ${email}:`, mailErr.message);
+      }
+
+      console.log(`👤 [Admin] Nuevo usuario creado con invitación: ${newUser.name} (${newUser.email}) - Rol: ${newUser.role}`);
+
+      return res.json({
+        success: true,
+        message: `Usuario ${newUser.name} registrado con éxito. Se ha enviado un correo con el enlace de activación a ${newUser.email}.`,
+        user: newUser,
+        mode: 'email'
+      });
+    } else {
+      // 2. Contraseña temporal: debe cambiarla obligatoriamente al ingresar
+      const tempPass = (temporaryPassword && temporaryPassword.length >= 8)
+        ? temporaryPassword
+        : `HLL${Math.floor(1000 + Math.random() * 9000)}*`;
+
+      const passwordHash = hashPassword(tempPass);
+
+      const result = await pool.query(`
+        INSERT INTO users (email, name, role, password_hash, must_change_password)
+        VALUES ($1, $2, $3, $4, TRUE)
+        RETURNING id, email, name, role;
+      `, [email, displayName, role, passwordHash]);
+
+      const newUser = result.rows[0];
+      console.log(`👤 [Admin] Nuevo usuario creado con clave temporal: ${newUser.name} (${newUser.email})`);
+
+      return res.json({
+        success: true,
+        message: `Usuario ${newUser.name} registrado exitosamente con clave temporal. Al ingresar se le exigirá cambiarla de inmediato.`,
+        user: newUser,
+        temporaryPassword: tempPass,
+        mode: 'temporary'
+      });
+    }
+  } catch (err) {
+    console.error('Error al crear usuario como admin:', err.message);
+    return res.status(500).json({ success: false, message: 'Error interno al crear usuario.' });
   }
 }
 
@@ -628,6 +741,7 @@ module.exports = {
   resetPassword,
   verifySession,
   getAllUsers,
+  createUser,
   updateUserRole,
   adminResetUserPassword,
   deleteUser

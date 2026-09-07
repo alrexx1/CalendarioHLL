@@ -73,6 +73,88 @@ const Users = {
     if (resetForm) {
       resetForm.addEventListener('submit', (e) => this.handleResetSubmit(e));
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Formulario de Creación de Usuario / Docente (Administrador)
+    // ═══════════════════════════════════════════════════════════════
+    const btnOpenCreate = document.getElementById('btn-open-create-user');
+    if (btnOpenCreate) {
+      btnOpenCreate.addEventListener('click', () => this.openCreateModal());
+    }
+
+    const createClose = document.getElementById('user-create-close');
+    const createCancel = document.getElementById('user-create-cancel');
+    const createOverlay = document.getElementById('user-create-overlay');
+
+    if (createClose) createClose.addEventListener('click', () => this.closeCreateModal());
+    if (createCancel) createCancel.addEventListener('click', () => this.closeCreateModal());
+    if (createOverlay) {
+      createOverlay.addEventListener('click', (e) => {
+        if (e.target === createOverlay) this.closeCreateModal();
+      });
+    }
+
+    // Toggle de radio cards para el modo de contraseña en creación
+    const radioCreateEmail = document.getElementById('pass-mode-email');
+    const radioCreateTemp = document.getElementById('pass-mode-temporary');
+    const cardCreateEmail = document.getElementById('card-mode-email');
+    const cardCreateTemp = document.getElementById('card-mode-temporary');
+    const createTempContainer = document.getElementById('create-temp-pass-container');
+
+    const updateCreatePassUI = () => {
+      if (radioCreateEmail && radioCreateEmail.checked) {
+        cardCreateEmail?.classList.add('active');
+        cardCreateTemp?.classList.remove('active');
+        if (createTempContainer) createTempContainer.style.display = 'none';
+      } else if (radioCreateTemp && radioCreateTemp.checked) {
+        cardCreateTemp?.classList.add('active');
+        cardCreateEmail?.classList.remove('active');
+        if (createTempContainer) {
+          createTempContainer.style.display = 'block';
+          document.getElementById('create-temp-pass')?.focus();
+        }
+      }
+    };
+
+    radioCreateEmail?.addEventListener('change', updateCreatePassUI);
+    radioCreateTemp?.addEventListener('change', updateCreatePassUI);
+
+    // Envío del formulario de nuevo usuario
+    const createForm = document.getElementById('user-create-form');
+    if (createForm) {
+      createForm.addEventListener('submit', (e) => this.handleCreateSubmit(e));
+    }
+
+    // Copiar contraseña temporal en modal de éxito
+    const btnCopyTemp = document.getElementById('btn-copy-temp-pass');
+    if (btnCopyTemp) {
+      btnCopyTemp.addEventListener('click', () => {
+        const passText = document.getElementById('user-temp-display-pass')?.textContent || '';
+        if (passText) {
+          navigator.clipboard.writeText(passText).then(() => {
+            const orig = btnCopyTemp.innerHTML;
+            btnCopyTemp.innerHTML = '✓ ¡Copiada!';
+            setTimeout(() => { btnCopyTemp.innerHTML = orig; }, 2000);
+          }).catch(() => {
+            showToast('No fue posible copiar automáticamente. Cópiela manualmente.');
+          });
+        }
+      });
+    }
+
+    // Cerrar modal de contraseña temporal de éxito
+    const btnCloseTempSuccess = document.getElementById('btn-close-temp-success');
+    const tempSuccessOverlay = document.getElementById('user-temp-success-overlay');
+    if (btnCloseTempSuccess) {
+      btnCloseTempSuccess.addEventListener('click', () => {
+        tempSuccessOverlay?.classList.remove('open');
+      });
+    }
+    if (tempSuccessOverlay) {
+      tempSuccessOverlay.addEventListener('click', (e) => {
+        if (e.target === tempSuccessOverlay) tempSuccessOverlay.classList.remove('open');
+      });
+    }
   },
 
   async openModal() {
@@ -353,6 +435,114 @@ const Users = {
       await this.fetchUsers();
     } catch (err) {
       showToast(err.message || 'Error al eliminar usuario.', 'error');
+    }
+  },
+
+  openCreateModal() {
+    const overlay = document.getElementById('user-create-overlay');
+    const nameInput = document.getElementById('create-user-name');
+    const emailInput = document.getElementById('create-user-email');
+    const roleSelect = document.getElementById('create-user-role');
+    const radioEmail = document.getElementById('pass-mode-email');
+    const cardEmail = document.getElementById('card-mode-email');
+    const cardTemp = document.getElementById('card-mode-temporary');
+    const tempContainer = document.getElementById('create-temp-pass-container');
+    const tempInput = document.getElementById('create-temp-pass');
+    const errBox = document.getElementById('create-user-error');
+
+    if (nameInput) nameInput.value = '';
+    if (emailInput) emailInput.value = '';
+    if (roleSelect) roleSelect.value = 'docente';
+    if (radioEmail) radioEmail.checked = true;
+    if (cardEmail) cardEmail.classList.add('active');
+    if (cardTemp) cardTemp.classList.remove('active');
+    if (tempContainer) tempContainer.style.display = 'none';
+    if (tempInput) tempInput.value = '';
+    if (errBox) {
+      errBox.textContent = '';
+      errBox.classList.remove('visible');
+    }
+
+    if (overlay) overlay.classList.add('open');
+    if (nameInput) nameInput.focus();
+  },
+
+  closeCreateModal() {
+    const overlay = document.getElementById('user-create-overlay');
+    if (overlay) overlay.classList.remove('open');
+  },
+
+  async handleCreateSubmit(e) {
+    e.preventDefault();
+
+    const name = document.getElementById('create-user-name')?.value.trim();
+    const email = document.getElementById('create-user-email')?.value.trim();
+    const role = document.getElementById('create-user-role')?.value || 'docente';
+    const mode = document.querySelector('input[name="create-pass-mode"]:checked')?.value || 'email';
+    const temporaryPassword = document.getElementById('create-temp-pass')?.value.trim();
+    const errBox = document.getElementById('create-user-error');
+    const submitBtn = document.getElementById('user-create-submit');
+
+    if (errBox) {
+      errBox.textContent = '';
+      errBox.classList.remove('visible');
+    }
+
+    if (!email || !email.includes('@')) {
+      if (errBox) {
+        errBox.textContent = 'Por favor ingrese un correo electrónico válido.';
+        errBox.classList.add('visible');
+      }
+      return;
+    }
+
+    if (mode === 'temporary' && temporaryPassword && temporaryPassword.length < 8) {
+      if (errBox) {
+        errBox.textContent = 'La contraseña temporal manual debe tener al menos 8 caracteres.';
+        errBox.classList.add('visible');
+      }
+      return;
+    }
+
+    const origText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Registrando...';
+
+    try {
+      const payload = {
+        name,
+        email,
+        role,
+        mode,
+        temporaryPassword: temporaryPassword || undefined
+      };
+
+      const res = await API.createUser(payload);
+      this.closeCreateModal();
+
+      if (res.mode === 'temporary' && res.temporaryPassword) {
+        const tempSuccessOverlay = document.getElementById('user-temp-success-overlay');
+        const passDisplay = document.getElementById('user-temp-display-pass');
+        const subtitle = document.getElementById('user-temp-success-subtitle');
+
+        if (passDisplay) passDisplay.textContent = res.temporaryPassword;
+        if (subtitle) {
+          subtitle.textContent = `Cuenta creada para ${res.user.name} (${res.user.email}).`;
+        }
+        if (tempSuccessOverlay) tempSuccessOverlay.classList.add('open');
+      } else {
+        showToast(res.message || 'Usuario creado exitosamente.');
+      }
+
+      await this.fetchUsers();
+    } catch (err) {
+      if (errBox) {
+        errBox.textContent = err.message || 'Error al crear usuario.';
+        errBox.classList.add('visible');
+      }
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = origText;
     }
   },
 

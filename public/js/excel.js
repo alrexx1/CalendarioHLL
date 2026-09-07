@@ -393,8 +393,7 @@ const ExcelExport = {
           L: '', M: ''
         },
         defaultBlocked: []
-      },
-      { r: 21, isBreak: true }
+      }
     ];
 
     rowsDef.forEach(item => {
@@ -428,16 +427,21 @@ const ExcelExport = {
 
       dayCols.forEach(pair => {
         const docVal = item.data[pair.d] || '';
-        const curVal = item.data[pair.c] || '';
-        const isBlocked = item.defaultBlocked.includes(pair.d) ||
-                          docVal.toUpperCase().includes('BLOQUEO') ||
-                          curVal.toUpperCase().includes('BLOQUEO');
+        const curUpper = curVal.toUpperCase();
+        const docUpper = docVal.toUpperCase();
+        const isSinBloque = curUpper.includes('SIN BLOQUE') || docUpper.includes('SIN BLOQUE');
+        const isOverrideFree = (curUpper === 'DISPONIBLE');
+        const isBlocked = !isOverrideFree && !isSinBloque && (
+          item.defaultBlocked.includes(pair.d) ||
+          docUpper.includes('BLOQUEO') ||
+          curUpper.includes('BLOQUEO')
+        );
 
         const dCell = ws.getCell(`${pair.d}${item.r}`);
         const cCell = ws.getCell(`${pair.c}${item.r}`);
 
-        dCell.value = isBlocked ? (docVal.includes('BLOQUEO') ? docVal : '') : docVal;
-        cCell.value = isBlocked ? (curVal.includes('BLOQUEO') ? curVal : '') : curVal;
+        dCell.value = (isBlocked || isSinBloque || isOverrideFree) ? '' : docVal;
+        cCell.value = (isBlocked || isSinBloque || isOverrideFree) ? '' : curVal;
 
         dCell.font = fontDocente;
         cCell.font = fontCurso;
@@ -452,14 +456,13 @@ const ExcelExport = {
           dCell.fill = fillBlocked;
           cCell.fill = fillBlocked;
         } else {
-          const curUpper = curVal.toUpperCase();
           let cellFill = fillWhite;
           if (curUpper.includes('EDUTEN')) {
-            cellFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } }; // celeste suave institucional
+            cellFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } };
           } else if (curUpper.includes('BEEVERSO')) {
-            cellFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } }; // menta suave institucional
+            cellFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
           } else if (curUpper.includes('MEDIO')) {
-            cellFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF9C3' } }; // amarillo suave institucional
+            cellFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF9C3' } };
           }
           dCell.fill = cellFill;
           cCell.fill = cellFill;
@@ -477,15 +480,21 @@ const ExcelExport = {
 
         const docVal = item.data.L || '';
         const curVal = item.data.M || '';
-        const isBlocked = item.defaultBlocked.includes('L') ||
-                          docVal.toUpperCase().includes('BLOQUEO') ||
-                          curVal.toUpperCase().includes('BLOQUEO');
+        const curUpper = curVal.toUpperCase();
+        const docUpper = docVal.toUpperCase();
+        const isSinBloque = curUpper.includes('SIN BLOQUE') || docUpper.includes('SIN BLOQUE');
+        const isOverrideFree = (curUpper === 'DISPONIBLE');
+        const isBlocked = !isOverrideFree && !isSinBloque && (
+          item.defaultBlocked.includes('L') ||
+          docUpper.includes('BLOQUEO') ||
+          curUpper.includes('BLOQUEO')
+        );
 
         const lCell = ws.getCell(`L${item.r}`);
         const mCell = ws.getCell(`M${item.r}`);
 
-        lCell.value = isBlocked ? (docVal.includes('BLOQUEO') ? docVal : '') : docVal;
-        mCell.value = isBlocked ? (curVal.includes('BLOQUEO') ? curVal : '') : curVal;
+        lCell.value = (isBlocked || isSinBloque || isOverrideFree) ? '' : docVal;
+        mCell.value = (isBlocked || isSinBloque || isOverrideFree) ? '' : curVal;
 
         lCell.font = fontDocente;
         mCell.font = fontCurso;
@@ -500,7 +509,6 @@ const ExcelExport = {
           lCell.fill = fillBlocked;
           mCell.fill = fillBlocked;
         } else {
-          const curUpper = curVal.toUpperCase();
           let cellFill = fillWhite;
           if (curUpper.includes('EDUTEN')) {
             cellFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } };
@@ -515,17 +523,30 @@ const ExcelExport = {
       }
     });
 
-    // Fila 22: NOTA institucional
+    // Fila 21: Espacio
+    ws.getRow(21).height = 10;
+
+    // Fila 22: NOTA institucional idéntica a la captura
     ws.getRow(22).height = 24;
     const noteTag = ws.getCell('B22');
     noteTag.value = 'NOTA:';
-    noteTag.font = fontMetaLabel;
+    noteTag.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0B2545' } };
     noteTag.alignment = { vertical: 'middle', horizontal: 'right' };
 
-    ws.mergeCells('C22:J22');
-    const noteText = ws.getCell('C22');
-    noteText.value = 'Los bloques sombreados corresponden a horarios donde no está disponible la sala.';
-    noteText.font = { name: 'Calibri', size: 9.5, italic: true, color: { argb: 'FF64748B' } };
+    const noteLabel = ws.getCell('C22');
+    noteLabel.value = 'Los bloques';
+    noteLabel.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E293B' } };
+    noteLabel.alignment = { vertical: 'middle', horizontal: 'center' };
+
+    const sampleBox = ws.getCell('D22');
+    sampleBox.value = '';
+    sampleBox.fill = fillBlocked;
+    sampleBox.border = borderThin;
+
+    ws.mergeCells('E22:H22');
+    const noteText = ws.getCell('E22');
+    noteText.value = 'no está disponible la sala.';
+    noteText.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E293B' } };
     noteText.alignment = { vertical: 'middle', horizontal: 'left' };
   },
 

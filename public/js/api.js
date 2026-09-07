@@ -111,6 +111,13 @@ const API = {
     return this.request('/api/auth/users');
   },
 
+  createUser(userData) {
+    return this.request('/api/auth/users', {
+      method: 'POST',
+      body: JSON.stringify(userData)
+    });
+  },
+
   updateUserRole(userId, role) {
     return this.request(`/api/auth/users/${userId}/role`, {
       method: 'PATCH',

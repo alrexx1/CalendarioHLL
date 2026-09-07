@@ -499,6 +499,8 @@
       <span class="legend-title">Leyenda:</span>
       <div class="legend-item"><span class="legend-dot occupied"></span> Reservado (Clases)</div>
       <div class="legend-item"><span class="legend-dot free"></span> Disponible</div>
+      <div class="legend-item"><span class="legend-dot default-blocked"></span> No disponible (Bloqueado)</div>
+      <div class="legend-item"><span class="legend-dot no-class"></span> Sin clases / Sin bloque (Viernes)</div>
       <div class="legend-item"><span class="legend-dot break"></span> Recreo / Almuerzo</div>
     </div>
   </main>
@@ -526,7 +528,9 @@
             <label for="f-tipo">Acci&oacute;n a realizar <span class="required">*</span></label>
             <select id="f-tipo" style="background:#FDF8E7; border-color:#D4AF37; font-weight:600; color:#0B2545;">
               <option value="reserva">📌 Reservar horario para clase de docente</option>
-              <option value="bloqueo">🔒 Bloquear horario (Mantenimiento / Evento)</option>
+              <option value="bloqueo">🔒 Bloquear horario (No disponible / Institucional)</option>
+              <option value="sin_bloque">⚪ Establecer como "Sin bloque" (No hay clases)</option>
+              <option value="disponible">🟢 Habilitar horario (Dejar Disponible para profesores)</option>
             </select>
           </div>
 
@@ -807,7 +811,7 @@
       </div>
 
       <div class="modal-body" style="padding-top:16px;">
-        <!-- Barra de herramientas: Filtro y Contadores -->
+        <!-- Barra de herramientas: Filtro, Botón Añadir Usuario y Contadores -->
         <div class="users-toolbar">
           <div class="users-search-box">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
@@ -816,6 +820,13 @@
             </svg>
             <input type="text" id="users-search-input" placeholder="Buscar por nombre o correo (@colegiohll.cl)..." />
           </div>
+          <button type="button" class="btn-primary" id="btn-open-create-user" style="display:inline-flex; align-items:center; gap:6px; font-size:0.82rem; font-weight:700; padding:8px 14px; border-radius:8px; white-space:nowrap; flex-shrink:0;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            <span>+ Añadir Usuario</span>
+          </button>
           <div class="users-stats-badges">
             <span class="user-stat-badge" id="badge-total-users">Total: 0</span>
             <span class="user-stat-badge badge-admin" id="badge-total-admins">Admins: 0</span>
@@ -891,6 +902,133 @@
             <button type="submit" class="btn-primary" id="user-action-submit">Aplicar Cambio</button>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       MODAL: AÑADIR NUEVO DOCENTE / USUARIO (ADMINISTRADOR)
+  ═══════════════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="user-create-overlay" role="dialog" aria-modal="true" style="z-index: 10002;">
+    <div class="modal" id="user-create-modal" style="max-width: 520px; width: 95%;">
+      <div class="modal-header">
+        <div class="modal-icon" style="background:rgba(11,37,69,0.08); color:var(--primary); border-color:rgba(11,37,69,0.15);">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+            <circle cx="8.5" cy="7" r="4" />
+            <line x1="20" y1="8" x2="20" y2="14" />
+            <line x1="23" y1="11" x2="17" y2="11" />
+          </svg>
+        </div>
+        <div>
+          <h2 style="color:var(--primary); font-size:1.15rem; margin:0;" id="user-create-title">Añadir Nuevo Usuario / Docente</h2>
+          <span style="font-size:0.78rem; color:var(--text-muted);">Registro de cuentas y método de acceso inicial</span>
+        </div>
+        <button class="modal-close" id="user-create-close" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="modal-body" style="padding-top:14px;">
+        <form id="user-create-form" novalidate>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label for="create-user-name" style="font-size:0.82rem; font-weight:600; display:block; margin-bottom:4px;">Nombre Completo <span style="color:var(--text-muted); font-weight:normal;">(Opcional)</span></label>
+            <input type="text" id="create-user-name" placeholder="Ej: Marcela Contreras" style="width:100%; font-size:0.85rem;" />
+          </div>
+
+          <div class="form-group" style="margin-bottom:12px;">
+            <label for="create-user-email" style="font-size:0.82rem; font-weight:600; display:block; margin-bottom:4px;">Correo Institucional <span class="required" style="color:#DC2626;">*</span></label>
+            <input type="email" id="create-user-email" placeholder="mcontreras@colegiohll.cl" required style="width:100%; font-size:0.85rem;" />
+          </div>
+
+          <div class="form-group" style="margin-bottom:16px;">
+            <label for="create-user-role" style="font-size:0.82rem; font-weight:600; display:block; margin-bottom:4px;">Rol en el Sistema <span class="required" style="color:#DC2626;">*</span></label>
+            <select id="create-user-role" style="width:100%; font-size:0.85rem; padding:8px 10px; border-radius:6px; border:1px solid #CBD5E1; background:#FFF;">
+              <option value="docente" selected>👨‍🏫 Docente Institucional</option>
+              <option value="administrator">🛡️ Administrador del Sistema</option>
+            </select>
+          </div>
+
+          <div style="margin-bottom:16px;">
+            <label style="font-size:0.82rem; font-weight:700; color:var(--primary); display:block; margin-bottom:8px;">
+              Método de Asignación de Contraseña <span class="required" style="color:#DC2626;">*</span>
+            </label>
+
+            <!-- Tarjeta Opción 1: Enviar link por correo -->
+            <label class="pass-option-card active" for="pass-mode-email" id="card-mode-email">
+              <input type="radio" name="create-pass-mode" id="pass-mode-email" value="email" checked />
+              <div class="pass-option-content">
+                <div class="pass-option-header">
+                  <span class="pass-option-icon">📧</span>
+                  <span class="pass-option-title">Enviar enlace por correo electrónico</span>
+                </div>
+                <p class="pass-option-desc">
+                  Se enviará un correo con un botón de enlace directo y código de activación para que el docente cree su propia contraseña.
+                </p>
+              </div>
+            </label>
+
+            <!-- Tarjeta Opción 2: Contraseña temporal obligatoria -->
+            <label class="pass-option-card" for="pass-mode-temporary" id="card-mode-temporary" style="margin-top:8px;">
+              <input type="radio" name="create-pass-mode" id="pass-mode-temporary" value="temporary" />
+              <div class="pass-option-content">
+                <div class="pass-option-header">
+                  <span class="pass-option-icon">🔑</span>
+                  <span class="pass-option-title">Asignar contraseña temporal (debe cambiarla al ingresar)</span>
+                </div>
+                <p class="pass-option-desc">
+                  El sistema genera una clave provisoria. Al iniciar sesión con esta clave, se le exigirá obligatoriamente crear una contraseña nueva.
+                </p>
+                <div id="create-temp-pass-container" style="display:none; margin-top:10px;">
+                  <input type="text" id="create-temp-pass" placeholder="Clave manual (opcional, mín. 8 carácteres; vacío para autogenerar)" style="width:100%; font-size:0.82rem; padding:7px 10px; border:1px solid #CBD5E1; border-radius:6px;" />
+                </div>
+              </div>
+            </label>
+          </div>
+
+          <div id="create-user-error" class="form-error" role="alert" style="margin-bottom:12px;"></div>
+
+          <div class="form-actions">
+            <button type="button" class="btn-secondary" id="user-create-cancel">Cancelar</button>
+            <button type="submit" class="btn-primary" id="user-create-submit">Registrar Usuario</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CONTRASEÑA TEMPORAL GENERADA (ÉXITO) -->
+  <div class="modal-overlay" id="user-temp-success-overlay" role="dialog" aria-modal="true" style="z-index: 10003;">
+    <div class="modal modal-sm" id="user-temp-success-modal" style="max-width: 480px; text-align:center;">
+      <div class="modal-header" style="justify-content:center; border-bottom:none; padding-bottom:0;">
+        <div class="modal-icon" style="background:rgba(16,185,129,0.15); color:#059669; width:48px; height:48px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </div>
+      </div>
+      <div class="modal-body" style="padding-top:8px;">
+        <h3 style="color:var(--primary); font-size:1.15rem; margin:0 0 6px;">¡Usuario Creado con Éxito!</h3>
+        <p style="font-size:0.82rem; color:var(--text-secondary); margin:0 0 16px;" id="user-temp-success-subtitle">
+          Se ha creado la cuenta con contraseña provisional.
+        </p>
+
+        <div style="background:#F8FAFC; border:2px dashed #CBD5E1; border-radius:10px; padding:16px; margin-bottom:16px;">
+          <span style="font-size:0.75rem; color:#64748B; text-transform:uppercase; letter-spacing:0.5px; font-weight:700; display:block; margin-bottom:6px;">
+            Contraseña Provisional Asignada
+          </span>
+          <div style="display:flex; align-items:center; justify-content:center; gap:8px;">
+            <span id="user-temp-display-pass" style="font-size:1.3rem; font-weight:800; color:#0B2545; font-family:monospace; letter-spacing:1.5px;"></span>
+            <button type="button" id="btn-copy-temp-pass" class="btn-secondary" style="padding:6px 12px; font-size:0.78rem; font-weight:700;" title="Copiar contraseña al portapapeles">
+              📋 Copiar
+            </button>
+          </div>
+        </div>
+
+        <p style="font-size:0.78rem; color:#64748B; line-height:1.45; margin-bottom:18px;">
+          📌 <b>Información para el usuario:</b> Entregue esta contraseña provisional al docente. Al ingresar a la Intranet por primera vez, el sistema detectará la clave temporal y <b>le exigirá de forma obligatoria cambiarla</b> por una personal.
+        </p>
+
+        <button type="button" class="btn-primary" id="btn-close-temp-success" style="width:100%; padding:10px;">
+          Entendido
+        </button>
       </div>
     </div>
   </div>
