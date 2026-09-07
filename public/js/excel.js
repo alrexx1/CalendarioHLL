@@ -117,9 +117,11 @@ const ExcelExport = {
     const [year, month] = (yearMonth || Calendar.currentYearMonth || '2026-09').split('-');
     const monthName = this.MONTH_NAMES[month] || 'SEPTIEMBRE';
 
-    // Formatear fechas D/M/YYYY
-    const fromStr = week?.from ? `${week.from.getDate()}/${week.from.getMonth() + 1}/${week.from.getFullYear()}` : '';
-    const toStr = week?.to ? `${week.to.getDate()}/${week.to.getMonth() + 1}/${week.to.getFullYear()}` : '';
+    // Formatear fechas D/M/YYYY (compatible con Date objetos o cadenas ISO/locales)
+    const fromDate = week?.from ? (week.from instanceof Date ? week.from : new Date(week.from)) : null;
+    const toDate = week?.to ? (week.to instanceof Date ? week.to : new Date(week.to)) : null;
+    const fromStr = fromDate && !isNaN(fromDate.getTime()) ? `${fromDate.getDate()}/${fromDate.getMonth() + 1}/${fromDate.getFullYear()}` : '';
+    const toStr = toDate && !isNaN(toDate.getTime()) ? `${toDate.getDate()}/${toDate.getMonth() + 1}/${toDate.getFullYear()}` : '';
 
     const res = week?.reservations || {};
     const mon = res.mon || {};
@@ -427,6 +429,7 @@ const ExcelExport = {
 
       dayCols.forEach(pair => {
         const docVal = item.data[pair.d] || '';
+        const curVal = item.data[pair.c] || '';
         const curUpper = curVal.toUpperCase();
         const docUpper = docVal.toUpperCase();
         const isSinBloque = curUpper.includes('SIN BLOQUE') || docUpper.includes('SIN BLOQUE');
@@ -568,10 +571,17 @@ const ExcelExport = {
       // Obtener logo del colegio
       let logoBuffer = null;
       try {
-        const resp = await fetch('/icons/icon-192.png');
-        if (resp.ok) logoBuffer = await resp.arrayBuffer();
+        let resp = await fetch('icons/icon-192.png').catch(() => null);
+        if (!resp || !resp.ok) {
+          resp = await fetch('/icons/icon-192.png').catch(() => null);
+        }
+        if (resp && resp.ok) logoBuffer = await resp.arrayBuffer();
       } catch (e) {
         console.warn('Logo no disponible:', e);
+      }
+
+      if (!Calendar.activeWeeks || Calendar.activeWeeks.length === 0) {
+        Calendar.activeWeeks = Calendar.buildMonthStructure(ym);
       }
 
       const workbook = new ExcelJS.Workbook();
@@ -594,12 +604,12 @@ const ExcelExport = {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
 
       showToast(`📥 Planilla exportada con éxito: ${fileName}`);
     } catch (err) {
       console.error('Error al exportar planilla:', err);
-      showToast('❌ Error al exportar la planilla Excel.', 'error');
+      showToast(`❌ Error al exportar la planilla Excel: ${err.message || 'Error desconocido'}`, 'error');
     }
   },
 
@@ -620,8 +630,11 @@ const ExcelExport = {
 
       let logoBuffer = null;
       try {
-        const resp = await fetch('/icons/icon-192.png');
-        if (resp.ok) logoBuffer = await resp.arrayBuffer();
+        let resp = await fetch('icons/icon-192.png').catch(() => null);
+        if (!resp || !resp.ok) {
+          resp = await fetch('/icons/icon-192.png').catch(() => null);
+        }
+        if (resp && resp.ok) logoBuffer = await resp.arrayBuffer();
       } catch (e) {
         console.warn('Logo no disponible:', e);
       }
@@ -651,12 +664,12 @@ const ExcelExport = {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
 
       showToast(`📄 Plantilla oficial descargada: ${fileName}`);
     } catch (err) {
       console.error('Error al descargar plantilla:', err);
-      showToast('❌ Error al generar la plantilla oficial.', 'error');
+      showToast(`❌ Error al generar la plantilla oficial: ${err.message || 'Error desconocido'}`, 'error');
     }
   },
 

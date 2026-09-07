@@ -97,6 +97,7 @@ const Calendar = {
 
     this.bindEvents();
     this.initSyncTimer();
+    this.initSwipeGestures();
     this.render();
     this.fetchMonth(this.currentYearMonth);
     this.checkHealth();
@@ -183,8 +184,11 @@ const Calendar = {
       btn.id = `week-tab-${i}`;
       btn.innerHTML = `${w.label}<span class="tab-dates">${this.formatDate(w.from)} – ${this.formatDate(w.to)}</span>`;
       btn.addEventListener('click', () => {
+        const prevWeek = this.currentWeek;
+        if (i === prevWeek) return;
         this.currentWeek = i;
-        this.render();
+        const anim = i > prevWeek ? 'anim-slide-left' : 'anim-slide-right';
+        this.renderWithAnimation(anim);
       });
       if (i === this.currentWeek) {
         setTimeout(() => {
@@ -590,17 +594,105 @@ const Calendar = {
     });
   },
 
-  setMobileDay(day) {
+  setMobileDay(day, animClass = null) {
     this.selectedMobileDay = day || 'all';
     const grid = document.getElementById('calendar-grid');
     if (grid) {
-      grid.classList.remove('filter-mon', 'filter-tue', 'filter-wed', 'filter-thu', 'filter-fri');
+      grid.classList.remove('filter-mon', 'filter-tue', 'filter-wed', 'filter-thu', 'filter-fri', 'anim-slide-left', 'anim-slide-right');
       if (this.selectedMobileDay !== 'all') {
         grid.classList.add(`filter-${this.selectedMobileDay}`);
+      }
+      if (animClass) {
+        void grid.offsetWidth;
+        grid.classList.add(animClass);
       }
     }
     const wrapper = document.getElementById('calendar-wrapper');
     if (wrapper) wrapper.scrollLeft = 0;
+
+    // Sincronizar estado visual de la barra de días móviles
+    const mobileDayNav = document.getElementById('mobile-day-nav');
+    if (mobileDayNav) {
+      mobileDayNav.querySelectorAll('.m-day-tab').forEach(tab => {
+        const isActive = (tab.dataset.day || 'all') === this.selectedMobileDay;
+        tab.classList.toggle('active', isActive);
+        if (isActive) {
+          tab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }
+      });
+    }
+  },
+
+  goToNextWeek(fromUserGesture = false) {
+    if (this.currentWeek < this.activeWeeks.length - 1) {
+      this.currentWeek++;
+      this.renderWithAnimation('anim-slide-left');
+      return true;
+    } else if (fromUserGesture && typeof showToast === 'function') {
+      showToast('ℹ️ Ya estás en la última semana del mes', 'info');
+    }
+    return false;
+  },
+
+  goToPrevWeek(fromUserGesture = false) {
+    if (this.currentWeek > 0) {
+      this.currentWeek--;
+      this.renderWithAnimation('anim-slide-right');
+      return true;
+    } else if (fromUserGesture && typeof showToast === 'function') {
+      showToast('ℹ️ Ya estás en la primera semana del mes', 'info');
+    }
+    return false;
+  },
+
+  goToNextMobileDay(fromUserGesture = false) {
+    if (this.selectedMobileDay === 'all') {
+      return this.goToNextWeek(fromUserGesture);
+    }
+    const dayOrder = ['mon', 'tue', 'wed', 'thu', 'fri'];
+    const idx = dayOrder.indexOf(this.selectedMobileDay);
+    if (idx < dayOrder.length - 1) {
+      this.setMobileDay(dayOrder[idx + 1], 'anim-slide-left');
+      return true;
+    } else {
+      // Viernes -> Avanza a la siguiente semana y muestra Lunes
+      if (this.goToNextWeek(fromUserGesture)) {
+        this.setMobileDay('mon', 'anim-slide-left');
+        return true;
+      }
+    }
+    return false;
+  },
+
+  goToPrevMobileDay(fromUserGesture = false) {
+    if (this.selectedMobileDay === 'all') {
+      return this.goToPrevWeek(fromUserGesture);
+    }
+    const dayOrder = ['mon', 'tue', 'wed', 'thu', 'fri'];
+    const idx = dayOrder.indexOf(this.selectedMobileDay);
+    if (idx > 0) {
+      this.setMobileDay(dayOrder[idx - 1], 'anim-slide-right');
+      return true;
+    } else {
+      // Lunes -> Retrocede a la semana anterior y muestra Viernes
+      if (this.goToPrevWeek(fromUserGesture)) {
+        this.setMobileDay('fri', 'anim-slide-right');
+        return true;
+      }
+    }
+    return false;
+  },
+
+  renderWithAnimation(animClass = null) {
+    this.render();
+    if (animClass) {
+      const grid = document.getElementById('calendar-grid');
+      if (grid) {
+        grid.classList.remove('anim-slide-left', 'anim-slide-right');
+        void grid.offsetWidth; // Forzar reflujo de layout para reiniciar animación
+        grid.classList.add(animClass);
+      }
+    }
   },
 
   render() {
@@ -762,17 +854,11 @@ const Calendar = {
     }
 
     document.getElementById('btn-prev')?.addEventListener('click', () => {
-      if (this.currentWeek > 0) {
-        this.currentWeek--;
-        this.render();
-      }
+      this.goToPrevWeek(true);
     });
 
     document.getElementById('btn-next')?.addEventListener('click', () => {
-      if (this.currentWeek < this.activeWeeks.length - 1) {
-        this.currentWeek++;
-        this.render();
-      }
+      this.goToNextWeek(true);
     });
 
     // Selector de día en móvil (Lunes a Viernes o Semana Completa)
@@ -781,10 +867,93 @@ const Calendar = {
       mobileDayNav.addEventListener('click', (e) => {
         const tab = e.target.closest('.m-day-tab');
         if (!tab) return;
-        mobileDayNav.querySelectorAll('.m-day-tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
         this.setMobileDay(tab.dataset.day || 'all');
       });
     }
+  },
+
+  initSwipeGestures() {
+    const targets = [
+      document.getElementById('calendar-wrapper'),
+      document.getElementById('week-banner'),
+      document.getElementById('week-tabs')
+    ].filter(Boolean);
+
+    targets.forEach(el => {
+      let touchStartX = 0;
+      let touchStartY = 0;
+      let touchStartTime = 0;
+      let isSwiping = false;
+
+      el.addEventListener('touchstart', (e) => {
+        if (!e.touches || e.touches.length !== 1) return;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchStartTime = Date.now();
+        isSwiping = true;
+      }, { passive: true });
+
+      el.addEventListener('touchmove', (e) => {
+        if (!isSwiping || !e.touches || e.touches.length !== 1) return;
+      }, { passive: true });
+
+      el.addEventListener('touchend', (e) => {
+        if (!isSwiping) return;
+        isSwiping = false;
+        if (!e.changedTouches || e.changedTouches.length !== 1) return;
+
+        const touchEndX = e.changedTouches[0].clientX;
+        const touchEndY = e.changedTouches[0].clientY;
+        const diffX = touchEndX - touchStartX;
+        const diffY = touchEndY - touchStartY;
+        const elapsed = Date.now() - touchStartTime;
+
+        // Validaciones:
+        // 1. Debe completarse en menos de 750ms
+        if (elapsed > 750) return;
+
+        // 2. Desplazamiento horizontal mínimo de 45px
+        if (Math.abs(diffX) < 45) return;
+
+        // 3. Predominancia horizontal clara sobre vertical (|diffX| > |diffY| * 1.25)
+        if (Math.abs(diffX) <= Math.abs(diffY) * 1.25) return;
+
+        // 4. Si es calendar-wrapper y estamos en vista completa 'all' con scroll horizontal disponible:
+        if (el.id === 'calendar-wrapper' && this.selectedMobileDay === 'all') {
+          const maxScroll = el.scrollWidth - el.clientWidth;
+          if (maxScroll > 15) {
+            const atLeftEdge = el.scrollLeft <= 15;
+            const atRightEdge = el.scrollLeft >= maxScroll - 15;
+
+            // Si desliza a la derecha (retroceder) pero no está en el borde izquierdo,
+            // permitimos el desplazamiento horizontal nativo
+            if (diffX > 0 && !atLeftEdge) return;
+            // Si desliza a la izquierda (avanzar) pero no está en el borde derecho,
+            // permitimos el desplazamiento horizontal nativo
+            if (diffX < 0 && !atRightEdge) return;
+          }
+        }
+
+        // diffX < 0: el usuario deslizó hacia la izquierda (Avanzar)
+        // diffX > 0: el usuario deslizó hacia la derecha (Retroceder)
+        if (diffX < 0) {
+          if (this.selectedMobileDay !== 'all') {
+            this.goToNextMobileDay(true);
+          } else {
+            this.goToNextWeek(true);
+          }
+        } else {
+          if (this.selectedMobileDay !== 'all') {
+            this.goToPrevMobileDay(true);
+          } else {
+            this.goToPrevWeek(true);
+          }
+        }
+      }, { passive: true });
+
+      el.addEventListener('touchcancel', () => {
+        isSwiping = false;
+      }, { passive: true });
+    });
   }
 };

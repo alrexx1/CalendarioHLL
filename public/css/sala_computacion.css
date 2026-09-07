@@ -469,12 +469,45 @@ input:checked + .slider:before { transform: translateX(18px); background-color: 
   border: 1px solid var(--border-strong);
   background: var(--bg-card);
   box-shadow: var(--shadow-md);
+  touch-action: pan-y pinch-zoom;
 }
 
 .calendar-grid {
   display: grid;
   grid-template-columns: 130px repeat(5, 1fr);
   min-width: 800px;
+  will-change: transform, opacity;
+}
+
+/* Transiciones animadas para navegación de semanas y gestos táctiles (Swipe) */
+.calendar-grid.anim-slide-left {
+  animation: slideInFromRight 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.calendar-grid.anim-slide-right {
+  animation: slideInFromLeft 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideInFromRight {
+  0% {
+    opacity: 0.35;
+    transform: translateX(36px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInFromLeft {
+  0% {
+    opacity: 0.35;
+    transform: translateX(-36px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .cal-header-cell {

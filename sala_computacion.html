@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0" />
   <title>Colegio Santo Domingo HLL — Sistema de Reservas de Sala de Computación</title>
   <meta name="description"
     content="Sistema web institucional para la visualización, gestión y reserva de la Sala de Computación del Colegio Santo Domingo Helen Lee Lassen." />
@@ -14,36 +14,118 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
     rel="stylesheet" />
 
-  <!-- Librería SheetJS para Exportación a Excel -->
+  <!-- Librería SheetJS para Importación de Excel -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Librería ExcelJS para Generación y Estilizado Ejecutivo de Excel con Logo y Colores Institucionales -->
+  <script src="js/vendor/exceljs.min.js"></script>
+  <script>
+    if (typeof ExcelJS === 'undefined') {
+      document.write('<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"><\/script>');
+    }
+  </script>
+
+  <!-- Configuración PWA (Progressive Web App) -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0B2545" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Calendario HLL" />
+  <!-- Favicon e Iconos para Pestaña del Navegador -->
+  <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
 
   <!-- Hoja de Estilos Institucional -->
-  <link rel="stylesheet" href="css/sala_computacion.css" />
+  <link rel="stylesheet" href="css/sala_computacion.css?v=1.2" />
   <style>
     #access-wall {
-      position: fixed; inset: 0; z-index: 9999;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
       background: linear-gradient(135deg, #0B2545 0%, #0d3060 60%, #081d38 100%);
-      display: flex; align-items: center; justify-content: center; flex-direction: column;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
     }
-    #access-wall.hidden { display: none; }
+
+    #access-wall.hidden {
+      display: none;
+    }
+
     .access-card {
-      background: rgba(255,255,255,0.06); border: 1px solid rgba(212,175,55,0.25);
-      border-radius: 16px; padding: 40px 44px 36px; width: 100%; max-width: 440px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.4); backdrop-filter: blur(12px);
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(212, 175, 55, 0.25);
+      border-radius: 16px;
+      padding: 40px 44px 36px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(12px);
     }
-    .access-logo { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }
-    .access-logo img { width: 52px; height: 52px; object-fit: contain; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3)); }
-    .access-logo-text h1 { font-size: 1.05rem; font-weight: 700; color: #fff; margin: 0 0 2px; }
-    .access-logo-text span { font-size: 0.78rem; color: #D4AF37; font-weight: 500; }
-    .access-title { font-size: 1.15rem; font-weight: 700; color: #fff; margin: 0 0 4px; }
-    .access-subtitle { font-size: 0.82rem; color: rgba(255,255,255,0.65); margin: 0 0 24px; line-height: 1.4; }
-    
-    .access-form-group { margin-bottom: 16px; }
-    .access-form-group label { display: block; font-size: 0.78rem; font-weight: 600; color: rgba(255,255,255,0.8); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.4px; }
+
+    .access-logo {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .access-logo img {
+      width: 52px;
+      height: 52px;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
+    }
+
+    .access-logo-text h1 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+      margin: 0 0 2px;
+    }
+
+    .access-logo-text span {
+      font-size: 0.78rem;
+      color: #D4AF37;
+      font-weight: 500;
+    }
+
+    .access-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #fff;
+      margin: 0 0 4px;
+    }
+
+    .access-subtitle {
+      font-size: 0.82rem;
+      color: rgba(255, 255, 255, 0.65);
+      margin: 0 0 24px;
+      line-height: 1.4;
+    }
+
+    .access-form-group {
+      margin-bottom: 16px;
+    }
+
+    .access-form-group label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.8);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
     .access-form-group input {
       width: 100%;
       background: #FFFFFF !important;
-      border: 1.5px solid rgba(212,175,55,0.4) !important;
+      border: 1.5px solid rgba(212, 175, 55, 0.4) !important;
       border-radius: 8px !important;
       padding: 11px 14px !important;
       font-size: 0.95rem !important;
@@ -54,27 +136,73 @@
       box-sizing: border-box !important;
       transition: border-color 0.15s, box-shadow 0.15s !important;
     }
+
     .access-form-group input::placeholder {
       color: #94A3B8 !important;
       -webkit-text-fill-color: #94A3B8 !important;
     }
+
     .access-form-group input:focus {
       border-color: #D4AF37 !important;
-      box-shadow: 0 0 0 3px rgba(212,175,55,0.25) !important;
+      box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.25) !important;
     }
+
     input:-webkit-autofill,
-    input:-webkit-autofill:hover, 
+    input:-webkit-autofill:hover,
     input:-webkit-autofill:focus,
     input:-webkit-autofill:active {
       -webkit-box-shadow: 0 0 0 30px #FFFFFF inset !important;
       -webkit-text-fill-color: #0F172A !important;
     }
-    .access-btn { width: 100%; background: linear-gradient(135deg, #D4AF37, #c49b28); color: #0B2545; border: none; border-radius: 9px; padding: 12px; font-size: 0.95rem; font-weight: 700; cursor: pointer; margin-top: 8px; transition: opacity 0.15s, transform 0.1s; }
-    .access-btn:hover { opacity: 0.92; transform: translateY(-1px); }
-    .access-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
-    #access-error { font-size: 0.82rem; color: #ff8a8a; margin-top: 10px; min-height: 18px; text-align: center; }
-    .access-footer { font-size: 0.75rem; color: rgba(255,255,255,0.4); text-align: center; margin-top: 24px; }
-    body.locked > *:not(#access-wall) { visibility: hidden; }
+
+    .access-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #D4AF37, #c49b28);
+      color: #0B2545;
+      border: none;
+      border-radius: 9px;
+      padding: 12px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    .access-btn:hover {
+      opacity: 0.92;
+      transform: translateY(-1px);
+    }
+
+    .access-btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    #access-error {
+      font-size: 0.82rem;
+      color: #ff8a8a;
+      margin-top: 10px;
+      min-height: 18px;
+      text-align: center;
+    }
+
+    .access-footer {
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.4);
+      text-align: center;
+      margin-top: 24px;
+    }
+
+    body.locked>*:not(#access-wall):not(#forgot-password-overlay):not(#change-password-overlay) {
+      visibility: hidden;
+    }
+
+    #forgot-password-overlay,
+    #change-password-overlay {
+      z-index: 10001;
+    }
   </style>
 </head>
 
@@ -86,17 +214,20 @@
   <div id="access-wall">
     <div class="access-card">
       <div class="access-logo">
-        <img src="https://www.colegiohll.cl/wp-content/uploads/2022/03/InsigniaColegioSD3.png" alt="Insignia Colegio HLL" />
+        <img src="https://www.colegiohll.cl/wp-content/uploads/2022/03/InsigniaColegioSD3.png"
+          alt="Insignia Colegio HLL" />
         <div class="access-logo-text">
           <h1>Colegio Santo Domingo</h1>
           <span>Helen Lee Lassen</span>
         </div>
       </div>
       <p class="access-title">Intranet Institucional</p>
-      <p class="access-subtitle">Ingrese con sus credenciales institucionales para gestionar y reservar la Sala de Computación.</p>
+      <p class="access-subtitle">Ingrese con sus credenciales institucionales para gestionar y reservar la Sala de
+        Computación.</p>
 
       <!-- Selector de Pestañas: Login vs Registro Docente -->
-      <div class="auth-tabs" style="display:flex; gap:8px; margin-bottom:18px; background:rgba(0,0,0,0.25); padding:4px; border-radius:10px;">
+      <div class="auth-tabs"
+        style="display:flex; gap:8px; margin-bottom:18px; background:rgba(0,0,0,0.25); padding:4px; border-radius:10px;">
         <button type="button" id="tab-login" class="auth-tab-btn active"
           style="flex:1; padding:9px; border:none; border-radius:7px; background:rgba(212,175,55,0.25); color:#D4AF37; font-weight:700; font-size:.82rem; cursor:pointer; transition:all .2s;">
           Iniciar Sesión
@@ -117,6 +248,11 @@
           <label for="access-pass">Contraseña</label>
           <input type="password" id="access-pass" placeholder="••••••••" autocomplete="current-password" required />
         </div>
+        <div style="display:flex; justify-content:flex-end; margin-top:4px; margin-bottom:12px;">
+          <button type="button" id="link-forgot-password" style="background:none; border:none; color:#D4AF37; font-size:0.8rem; cursor:pointer; text-decoration:underline; padding:2px 0;">
+            ¿Olvidaste tu contraseña?
+          </button>
+        </div>
         <div id="access-error"></div>
         <button type="submit" class="access-btn" id="access-submit">Ingresar al Sistema</button>
       </form>
@@ -125,11 +261,12 @@
       <form id="access-register-form" novalidate autocomplete="on" style="display:none;">
         <div class="access-form-group">
           <label for="reg-name">Nombre Completo</label>
-          <input type="text" id="reg-name" placeholder="Ej: Melissa Bozzo" autocomplete="name" required />
+          <input type="text" id="reg-name" placeholder="Ej: Alejandro Nilo" autocomplete="name" required />
         </div>
         <div class="access-form-group">
           <label for="reg-email">Correo Institucional (@colegiohll.cl)</label>
-          <input type="email" id="reg-email" placeholder="nombre.apellido@colegiohll.cl" autocomplete="username" required />
+          <input type="email" id="reg-email" placeholder="nombre.apellido@colegiohll.cl" autocomplete="username"
+            required />
         </div>
         <div class="access-form-group">
           <label for="reg-pass">Crear Contraseña (mínimo 8 caracteres)</label>
@@ -139,7 +276,8 @@
           <label for="reg-confirm">Confirmar Contraseña</label>
           <input type="password" id="reg-confirm" placeholder="••••••••" autocomplete="new-password" required />
         </div>
-        <div id="reg-error" class="form-error" style="font-size:0.82rem; color:#ff8a8a; margin-top:6px; min-height:16px; text-align:center;"></div>
+        <div id="reg-error" class="form-error"
+          style="font-size:0.82rem; color:#ff8a8a; margin-top:6px; min-height:16px; text-align:center;"></div>
         <button type="submit" class="access-btn" id="reg-submit">Crear Cuenta y Entrar</button>
       </form>
 
@@ -163,13 +301,25 @@
         </div>
       </div>
 
-      <div class="header-meta">
-        <!-- Indicador de Estado de la Base de Datos Neon -->
-        <div id="neon-badge" class="neon-badge offline" title="Verificando conexión...">
-          <span class="neon-dot"></span>
-          <span id="neon-status-text">Conectando...</span>
-        </div>
+      <!-- Acciones Rápidas para Móviles (Visible solo en pantallas estrechas) -->
+      <div class="header-mobile-actions">
+        <button id="btn-add-modal-mobile" class="btn-primary btn-mobile-quick" title="Nueva Reserva">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          <span>Reservar</span>
+        </button>
+        <button id="btn-mobile-menu" class="btn-mobile-menu" aria-label="Abrir menú de opciones" aria-expanded="false">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2">
+            <line x1="4" y1="7" x2="20" y2="7" />
+            <line x1="4" y1="12" x2="20" y2="12" />
+            <line x1="4" y1="17" x2="20" y2="17" />
+          </svg>
+        </button>
+      </div>
 
+      <div class="header-meta">
         <!-- Switch de Modo Administrador -->
         <div class="admin-switch-wrapper" title="Activar o desactivar permisos de Administrador">
           <label class="switch">
@@ -201,7 +351,7 @@
             <option value="05">Mayo</option>
             <option value="06">Junio</option>
             <option value="07">Julio</option>
-            <option value="08" selected>Agosto</option>
+            <option value="08">Agosto</option>
             <option value="09">Septiembre</option>
             <option value="10">Octubre</option>
             <option value="11">Noviembre</option>
@@ -209,13 +359,22 @@
           </select>
           <select id="year-select" class="month-select year-select" title="Seleccionar Año">
             <option value="2025">2025</option>
-            <option value="2026" selected>2026</option>
+            <option value="2026">2026</option>
             <option value="2027">2027</option>
             <option value="2028">2028</option>
             <option value="2029">2029</option>
             <option value="2030">2030</option>
           </select>
         </div>
+
+        <!-- Botón Instalar PWA (Se muestra cuando el navegador lo soporta) -->
+        <button id="btn-install-pwa" class="btn-secondary" style="display:none; border-color:rgba(212,175,55,0.4); color:#D4AF37;" title="Instalar aplicación en tu teléfono o PC">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+            <line x1="12" y1="18" x2="12.01" y2="18" />
+          </svg>
+          Instalar App
+        </button>
 
         <!-- Botón Exportar a Excel (Exclusivo Administrador) -->
         <button id="btn-export-excel" class="btn-secondary admin-only-btn"
@@ -228,10 +387,40 @@
           Exportar
         </button>
 
-        <!-- Indicador de Sesión de Usuario -->
-        <div id="teacher-session-info" style="display:none; align-items:center; gap:8px; font-size:.82rem; color:var(--text-secondary);">
-          <span id="teacher-session-name">Docente</span>
-          <button id="btn-teacher-logout" style="background:none; border:1px solid var(--border-light); border-radius:6px; padding:3px 8px; font-size:.75rem; cursor:pointer; color:var(--text-muted);" title="Cerrar sesión">Salir</button>
+        <!-- Botón Importar desde Excel (Exclusivo Administrador) -->
+        <button id="btn-import-excel" class="btn-secondary admin-only-btn"
+          title="Importar planillas y reservas desde Excel (.xlsx)" style="display:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+          Importar
+        </button>
+
+        <!-- Botón Gestión de Docentes (Exclusivo Administrador) -->
+        <button id="btn-manage-users" class="btn-secondary admin-only-btn"
+          title="Gestión de Cuentas y Docentes" style="display:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 00-3-3.87" />
+            <path d="M16 3.13a4 4 0 010 7.75" />
+          </svg>
+          Docentes
+        </button>
+
+        <!-- Indicador de Sesión de Usuario con Botón Salir -->
+        <div id="teacher-session-info" class="teacher-session-info" style="display:none;">
+          <span id="teacher-session-name" class="teacher-session-name">Docente</span>
+          <button id="btn-teacher-logout" class="btn-logout" title="Cerrar sesión e ir a la pantalla de acceso">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            Salir
+          </button>
         </div>
 
         <!-- Botón Nueva Reserva -->
@@ -265,7 +454,7 @@
       </button>
     </section>
 
-    <!-- Banner Estadístico -->
+    <!-- Banner Estadístico y Sincronización -->
     <div class="week-banner" id="week-banner">
       <div class="week-banner-left">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
@@ -276,11 +465,42 @@
         </svg>
         <span id="week-range-label">Semana seleccionada...</span>
       </div>
-      <div class="week-stats" id="week-stats"></div>
+      <div class="week-banner-right">
+        <button type="button" id="btn-sync-calendar" class="btn-sync-badge" title="Actualizar calendario y verificar nuevas reservas">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" class="sync-icon">
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
+          <span id="sync-status-text">Al día</span>
+        </button>
+        <div class="week-stats" id="week-stats"></div>
+      </div>
+    </div>
+
+    <!-- Selector de Día en Móvil (Semana Completa o Día a Día) -->
+    <div class="mobile-day-nav" id="mobile-day-nav" role="tablist" aria-label="Filtro de días en móvil">
+      <button type="button" class="m-day-tab active" data-day="all">Semana</button>
+      <button type="button" class="m-day-tab" data-day="mon">Lun</button>
+      <button type="button" class="m-day-tab" data-day="tue">Mar</button>
+      <button type="button" class="m-day-tab" data-day="wed">Mié</button>
+      <button type="button" class="m-day-tab" data-day="thu">Jue</button>
+      <button type="button" class="m-day-tab" data-day="fri">Vie</button>
+    </div>
+
+    <!-- Indicador de Desplazamiento Horizontal para Móviles -->
+    <div class="mobile-scroll-hint" id="mobile-scroll-hint">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="15 18 9 12 15 6" />
+      </svg>
+      <span>Desliza con el dedo (swipe) para cambiar de día o semana</span>
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="9 18 15 12 9 6" />
+      </svg>
     </div>
 
     <!-- Grilla del Calendario -->
-    <div class="calendar-wrapper">
+    <div class="calendar-wrapper" id="calendar-wrapper">
       <div class="calendar-grid" id="calendar-grid"></div>
     </div>
 
@@ -289,6 +509,8 @@
       <span class="legend-title">Leyenda:</span>
       <div class="legend-item"><span class="legend-dot occupied"></span> Reservado (Clases)</div>
       <div class="legend-item"><span class="legend-dot free"></span> Disponible</div>
+      <div class="legend-item"><span class="legend-dot default-blocked"></span> No disponible (Bloqueado)</div>
+      <div class="legend-item"><span class="legend-dot no-class"></span> Sin clases / Sin bloque (Viernes)</div>
       <div class="legend-item"><span class="legend-dot break"></span> Recreo / Almuerzo</div>
     </div>
   </main>
@@ -316,7 +538,9 @@
             <label for="f-tipo">Acci&oacute;n a realizar <span class="required">*</span></label>
             <select id="f-tipo" style="background:#FDF8E7; border-color:#D4AF37; font-weight:600; color:#0B2545;">
               <option value="reserva">📌 Reservar horario para clase de docente</option>
-              <option value="bloqueo">🔒 Bloquear horario (Mantenimiento / Evento)</option>
+              <option value="bloqueo">🔒 Bloquear horario (No disponible / Institucional)</option>
+              <option value="sin_bloque">⚪ Establecer como "Sin bloque" (No hay clases)</option>
+              <option value="disponible">🟢 Habilitar horario (Dejar Disponible para profesores)</option>
             </select>
           </div>
 
@@ -329,6 +553,14 @@
               <label for="f-curso">Curso o Asignatura <span class="required">*</span></label>
               <input type="text" id="f-curso" placeholder="Ej: 4B Eduten / 2M Lenguaje" required />
             </div>
+          </div>
+
+          <div class="form-group" id="email-confirm-group" style="margin-bottom:14px;">
+            <label for="f-email">Correo para Enviar Comprobante <span style="font-weight:400; color:var(--text-muted); font-size:.82rem;">(opcional)</span></label>
+            <input type="email" id="f-email" placeholder="docente@colegiohll.cl" autocomplete="email" />
+            <span style="font-size:.78rem; color:#059669; margin-top:4px; display:block; font-weight:600;">
+              ✉️ Enviaremos el comprobante oficial de la reserva a este correo.
+            </span>
           </div>
 
           <div class="form-row">
@@ -419,11 +651,17 @@
         <form id="admin-login-form" novalidate>
           <div class="form-group">
             <label for="admin-email">Correo Institucional <span class="required">*</span></label>
-            <input type="email" id="admin-email" placeholder="admin@colegiohll.cl" autocomplete="username" required />
+            <input type="email" id="admin-email" placeholder="usuario@colegiohll.cl" autocomplete="username" required />
           </div>
           <div class="form-group">
             <label for="admin-password">Contraseña <span class="required">*</span></label>
-            <input type="password" id="admin-password" placeholder="••••••••" autocomplete="current-password" required />
+            <input type="password" id="admin-password" placeholder="••••••••" autocomplete="current-password"
+              required />
+            <div style="display:flex; justify-content:flex-end; margin-top:4px;">
+              <button type="button" id="admin-link-forgot" style="background:none; border:none; color:var(--primary); font-size:0.8rem; cursor:pointer; text-decoration:underline; padding:2px 0;">
+                ¿Olvidaste tu contraseña?
+              </button>
+            </div>
           </div>
 
           <div id="admin-login-error" class="form-error" role="alert"></div>
@@ -434,6 +672,79 @@
             <button type="submit" class="btn-primary">Ingresar como Admin</button>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       MODAL: RECUPERACIÓN DE CONTRASEÑA VÍA CORREO ELECTRÓNICO
+  ═══════════════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="forgot-password-overlay" role="dialog" aria-modal="true" aria-labelledby="forgot-password-title">
+    <div class="modal modal-sm" id="forgot-password-modal">
+      <div class="modal-header">
+        <div class="modal-icon" style="background:rgba(212,175,55,0.12); color:#D4AF37; border-color:rgba(212,175,55,0.3);">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M21 2l-2 2m-1.5 1.5L16 7m-1 1l-2 2m3-5l2 2m-2-2L14 3m-1 1L3 14v7h7l10-10-7-7z" />
+            <circle cx="7.5" cy="16.5" r="1.5" />
+          </svg>
+        </div>
+        <h2 id="forgot-password-title" style="color:#0B2545;">Recuperar Contraseña</h2>
+        <button class="modal-close" id="forgot-password-close" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Paso 1: Solicitar Código -->
+        <div id="forgot-step-1">
+          <p style="font-size:0.86rem; color:var(--text-secondary); margin-bottom:16px; line-height:1.5;">
+            Ingrese su correo electrónico registrado. Le enviaremos un código de verificación de 6 dígitos para restablecer su contraseña.
+          </p>
+          <form id="forgot-request-form" novalidate>
+            <div class="form-group">
+              <label for="forgot-email">Correo Institucional <span class="required">*</span></label>
+              <input type="email" id="forgot-email" placeholder="usuario@colegiohll.cl" autocomplete="username" required />
+            </div>
+            <div id="forgot-request-error" class="form-error" role="alert"></div>
+            <div class="form-actions" style="margin-top:16px;">
+              <button type="button" class="btn-secondary" id="forgot-cancel-btn">Cancelar</button>
+              <button type="submit" class="btn-primary" id="forgot-send-btn">Enviar Código</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Paso 2: Ingresar Código y Nueva Contraseña -->
+        <div id="forgot-step-2" style="display:none;">
+          <div class="security-alert-box" style="background:#F0FDF4; border-color:#86EFAC; color:#166534; margin-bottom:16px;">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+            <span id="forgot-code-sent-msg">Hemos enviado un código a su correo. Revise su bandeja de entrada.</span>
+          </div>
+
+          <form id="forgot-reset-form" novalidate>
+            <div class="form-group">
+              <label for="forgot-code">Código de Verificación (6 dígitos) <span class="required">*</span></label>
+              <input type="text" id="forgot-code" placeholder="123456" maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code" style="letter-spacing:4px; font-weight:700; font-size:1.15rem; text-align:center;" required />
+              <span class="password-requirements">Código válido por 15 minutos.</span>
+            </div>
+
+            <div class="form-group">
+              <label for="forgot-new-pass">Nueva Contraseña <span class="required">*</span></label>
+              <input type="password" id="forgot-new-pass" placeholder="Mínimo 8 caracteres" autocomplete="new-password" required />
+            </div>
+
+            <div class="form-group">
+              <label for="forgot-confirm-pass">Confirmar Nueva Contraseña <span class="required">*</span></label>
+              <input type="password" id="forgot-confirm-pass" placeholder="Repita la nueva contraseña" autocomplete="new-password" required />
+            </div>
+
+            <div id="forgot-reset-error" class="form-error" role="alert"></div>
+
+            <div class="form-actions" style="margin-top:16px;">
+              <button type="button" class="btn-secondary" id="forgot-back-btn">Atrás</button>
+              <button type="submit" class="btn-primary" id="forgot-submit-btn">Restablecer y Entrar</button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   </div>
@@ -478,7 +789,8 @@
           <div id="change-password-error" class="form-error" role="alert"></div>
 
           <div class="form-actions" style="justify-content: stretch;">
-            <button type="submit" class="btn-primary" id="change-password-submit" style="width:100%; justify-content:center;">
+            <button type="submit" class="btn-primary" id="change-password-submit"
+              style="width:100%; justify-content:center;">
               Guardar Contraseña y Continuar
             </button>
           </div>
@@ -488,14 +800,402 @@
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════════════
+       MODAL: GESTIÓN DE DOCENTES Y USUARIOS (ADMINISTRADOR)
+  ═══════════════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="users-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="users-modal-title">
+    <div class="modal modal-lg" id="users-modal" style="max-width: 900px; width: 95%;">
+      <div class="modal-header">
+        <div class="modal-icon" style="background:rgba(11,37,69,0.08); color:var(--primary); border-color:rgba(11,37,69,0.15);">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 00-3-3.87" />
+            <path d="M16 3.13a4 4 0 010 7.75" />
+          </svg>
+        </div>
+        <div>
+          <h2 id="users-modal-title" style="color:var(--primary); margin:0; font-size:1.25rem;">Gestión de Docentes y Cuentas</h2>
+          <span style="font-size:0.8rem; color:var(--text-muted);">Administración de usuarios de la Intranet HLL</span>
+        </div>
+        <button class="modal-close" id="users-modal-close" aria-label="Cerrar">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding-top:16px;">
+        <!-- Barra de herramientas: Filtro, Botón Añadir Usuario y Contadores -->
+        <div class="users-toolbar">
+          <div class="users-search-box">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input type="text" id="users-search-input" placeholder="Buscar por nombre o correo (@colegiohll.cl)..." />
+          </div>
+          <button type="button" class="btn-primary" id="btn-open-create-user" style="display:inline-flex; align-items:center; gap:6px; font-size:0.82rem; font-weight:700; padding:8px 14px; border-radius:8px; white-space:nowrap; flex-shrink:0;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            <span>+ Añadir Usuario</span>
+          </button>
+          <div class="users-stats-badges">
+            <span class="user-stat-badge" id="badge-total-users">Total: 0</span>
+            <span class="user-stat-badge badge-admin" id="badge-total-admins">Admins: 0</span>
+            <span class="user-stat-badge badge-docente" id="badge-total-teachers">Docentes: 0</span>
+          </div>
+        </div>
+
+        <!-- Contenedor con Scroll de la Lista de Usuarios -->
+        <div class="users-table-container">
+          <div id="users-loading" style="text-align:center; padding:35px; color:var(--text-muted);">
+            <div class="spinner" style="margin:0 auto 10px;"></div>
+            Cargando nómina institucional...
+          </div>
+          <div id="users-list" class="users-list-wrapper" style="display:none;"></div>
+          <div id="users-empty" style="display:none; text-align:center; padding:35px; color:var(--text-muted); font-size:0.9rem;">
+            No se encontraron usuarios que coincidan con la búsqueda.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL SECUNDARIO: ACCIÓN DE RESETEO / ASIGNACIÓN DE CONTRASEÑA -->
+  <div class="modal-overlay" id="user-action-overlay" role="dialog" aria-modal="true" style="z-index: 10002;">
+    <div class="modal modal-sm" id="user-action-modal">
+      <div class="modal-header">
+        <div class="modal-icon" style="background:rgba(212,175,55,0.15); color:#D4AF37;">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" />
+            <path d="M7 11V7a5 5 0 0110 0v4" />
+          </svg>
+        </div>
+        <div>
+          <h2 style="color:var(--primary); font-size:1.1rem; margin:0;" id="user-action-title">Restablecer Contraseña</h2>
+          <span style="font-size:0.78rem; color:var(--text-muted);" id="user-action-subtitle">Docente</span>
+        </div>
+        <button class="modal-close" id="user-action-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:16px; line-height:1.4;">
+          Seleccione cómo desea restablecer la contraseña del usuario:
+        </p>
+        <form id="user-reset-form">
+          <input type="hidden" id="action-user-id" />
+          
+          <div class="form-group" style="margin-bottom:12px;">
+            <label style="font-size:0.85rem; font-weight:600; display:flex; align-items:center; gap:8px; cursor:pointer;">
+              <input type="radio" name="reset-option" value="email" checked />
+              Enviar correo con código de recuperación
+            </label>
+            <p style="font-size:0.75rem; color:var(--text-muted); margin-left:22px; margin-top:2px;">
+              El docente recibirá un correo oficial de Soporte Laboratorio HLL.
+            </p>
+          </div>
+
+          <div class="form-group" style="margin-top:14px;">
+            <label style="font-size:0.85rem; font-weight:600; display:flex; align-items:center; gap:8px; cursor:pointer;">
+              <input type="radio" name="reset-option" value="temporary" />
+              Asignar contraseña temporal manual
+            </label>
+            <div id="temp-pass-field" style="display:none; margin-left:22px; margin-top:8px;">
+              <input type="text" id="action-temp-pass" placeholder="Ej: HLL2026.Docente (mínimo 8 caracteres)" style="width:100%; font-size:0.85rem;" />
+              <p style="font-size:0.74rem; color:var(--text-muted); margin-top:4px;">
+                Al iniciar sesión, se le exigirá obligatoriamente crear una contraseña nueva.
+              </p>
+            </div>
+          </div>
+
+          <div id="user-action-error" class="form-error" role="alert"></div>
+
+          <div class="form-actions" style="margin-top:18px;">
+            <button type="button" class="btn-secondary" id="user-action-cancel">Cancelar</button>
+            <button type="submit" class="btn-primary" id="user-action-submit">Aplicar Cambio</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       MODAL: AÑADIR NUEVO DOCENTE / USUARIO (ADMINISTRADOR)
+  ═══════════════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="user-create-overlay" role="dialog" aria-modal="true" style="z-index: 10002;">
+    <div class="modal" id="user-create-modal" style="max-width: 520px; width: 95%;">
+      <div class="modal-header">
+        <div class="modal-icon" style="background:rgba(11,37,69,0.08); color:var(--primary); border-color:rgba(11,37,69,0.15);">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+            <circle cx="8.5" cy="7" r="4" />
+            <line x1="20" y1="8" x2="20" y2="14" />
+            <line x1="23" y1="11" x2="17" y2="11" />
+          </svg>
+        </div>
+        <div>
+          <h2 style="color:var(--primary); font-size:1.15rem; margin:0;" id="user-create-title">Añadir Nuevo Usuario / Docente</h2>
+          <span style="font-size:0.78rem; color:var(--text-muted);">Registro de cuentas y método de acceso inicial</span>
+        </div>
+        <button class="modal-close" id="user-create-close" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="modal-body" style="padding-top:14px;">
+        <form id="user-create-form" novalidate>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label for="create-user-name" style="font-size:0.82rem; font-weight:600; display:block; margin-bottom:4px;">Nombre Completo <span style="color:var(--text-muted); font-weight:normal;">(Opcional)</span></label>
+            <input type="text" id="create-user-name" placeholder="Ej: Marcela Contreras" style="width:100%; font-size:0.85rem;" />
+          </div>
+
+          <div class="form-group" style="margin-bottom:12px;">
+            <label for="create-user-email" style="font-size:0.82rem; font-weight:600; display:block; margin-bottom:4px;">Correo Institucional <span class="required" style="color:#DC2626;">*</span></label>
+            <input type="email" id="create-user-email" placeholder="mcontreras@colegiohll.cl" required style="width:100%; font-size:0.85rem;" />
+          </div>
+
+          <div class="form-group" style="margin-bottom:16px;">
+            <label for="create-user-role" style="font-size:0.82rem; font-weight:600; display:block; margin-bottom:4px;">Rol en el Sistema <span class="required" style="color:#DC2626;">*</span></label>
+            <select id="create-user-role" style="width:100%; font-size:0.85rem; padding:8px 10px; border-radius:6px; border:1px solid #CBD5E1; background:#FFF;">
+              <option value="docente" selected>👨‍🏫 Docente Institucional</option>
+              <option value="administrator">🛡️ Administrador del Sistema</option>
+            </select>
+          </div>
+
+          <div style="margin-bottom:16px;">
+            <label style="font-size:0.82rem; font-weight:700; color:var(--primary); display:block; margin-bottom:8px;">
+              Método de Asignación de Contraseña <span class="required" style="color:#DC2626;">*</span>
+            </label>
+
+            <!-- Tarjeta Opción 1: Enviar link por correo -->
+            <label class="pass-option-card active" for="pass-mode-email" id="card-mode-email">
+              <input type="radio" name="create-pass-mode" id="pass-mode-email" value="email" checked />
+              <div class="pass-option-content">
+                <div class="pass-option-header">
+                  <span class="pass-option-icon">📧</span>
+                  <span class="pass-option-title">Enviar enlace por correo electrónico</span>
+                </div>
+                <p class="pass-option-desc">
+                  Se enviará un correo con un botón de enlace directo y código de activación para que el docente cree su propia contraseña.
+                </p>
+              </div>
+            </label>
+
+            <!-- Tarjeta Opción 2: Contraseña temporal obligatoria -->
+            <label class="pass-option-card" for="pass-mode-temporary" id="card-mode-temporary" style="margin-top:8px;">
+              <input type="radio" name="create-pass-mode" id="pass-mode-temporary" value="temporary" />
+              <div class="pass-option-content">
+                <div class="pass-option-header">
+                  <span class="pass-option-icon">🔑</span>
+                  <span class="pass-option-title">Asignar contraseña temporal (debe cambiarla al ingresar)</span>
+                </div>
+                <p class="pass-option-desc">
+                  El sistema genera una clave provisoria. Al iniciar sesión con esta clave, se le exigirá obligatoriamente crear una contraseña nueva.
+                </p>
+                <div id="create-temp-pass-container" style="display:none; margin-top:10px;">
+                  <input type="text" id="create-temp-pass" placeholder="Clave manual (opcional, mín. 8 carácteres; vacío para autogenerar)" style="width:100%; font-size:0.82rem; padding:7px 10px; border:1px solid #CBD5E1; border-radius:6px;" />
+                </div>
+              </div>
+            </label>
+          </div>
+
+          <div id="create-user-error" class="form-error" role="alert" style="margin-bottom:12px;"></div>
+
+          <div class="form-actions">
+            <button type="button" class="btn-secondary" id="user-create-cancel">Cancelar</button>
+            <button type="submit" class="btn-primary" id="user-create-submit">Registrar Usuario</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CONTRASEÑA TEMPORAL GENERADA (ÉXITO) -->
+  <div class="modal-overlay" id="user-temp-success-overlay" role="dialog" aria-modal="true" style="z-index: 10003;">
+    <div class="modal modal-sm" id="user-temp-success-modal" style="max-width: 480px; text-align:center;">
+      <div class="modal-header" style="justify-content:center; border-bottom:none; padding-bottom:0;">
+        <div class="modal-icon" style="background:rgba(16,185,129,0.15); color:#059669; width:48px; height:48px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </div>
+      </div>
+      <div class="modal-body" style="padding-top:8px;">
+        <h3 style="color:var(--primary); font-size:1.15rem; margin:0 0 6px;">¡Usuario Creado con Éxito!</h3>
+        <p style="font-size:0.82rem; color:var(--text-secondary); margin:0 0 16px;" id="user-temp-success-subtitle">
+          Se ha creado la cuenta con contraseña provisional.
+        </p>
+
+        <div style="background:#F8FAFC; border:2px dashed #CBD5E1; border-radius:10px; padding:16px; margin-bottom:16px;">
+          <span style="font-size:0.75rem; color:#64748B; text-transform:uppercase; letter-spacing:0.5px; font-weight:700; display:block; margin-bottom:6px;">
+            Contraseña Provisional Asignada
+          </span>
+          <div style="display:flex; align-items:center; justify-content:center; gap:8px;">
+            <span id="user-temp-display-pass" style="font-size:1.3rem; font-weight:800; color:#0B2545; font-family:monospace; letter-spacing:1.5px;"></span>
+            <button type="button" id="btn-copy-temp-pass" class="btn-secondary" style="padding:6px 12px; font-size:0.78rem; font-weight:700;" title="Copiar contraseña al portapapeles">
+              📋 Copiar
+            </button>
+          </div>
+        </div>
+
+        <p style="font-size:0.78rem; color:#64748B; line-height:1.45; margin-bottom:18px;">
+          📌 <b>Información para el usuario:</b> Entregue esta contraseña provisional al docente. Al ingresar a la Intranet por primera vez, el sistema detectará la clave temporal y <b>le exigirá de forma obligatoria cambiarla</b> por una personal.
+        </p>
+
+        <button type="button" class="btn-primary" id="btn-close-temp-success" style="width:100%; padding:10px;">
+          Entendido
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       MODAL: IMPORTAR PLANILLA EXCEL (.XLSX) (ADMINISTRADOR)
+  ═══════════════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="import-excel-overlay" role="dialog" aria-modal="true" aria-labelledby="import-excel-title">
+    <div class="modal modal-lg" id="import-excel-modal" style="max-width: 800px; width: 95%;">
+      <div class="modal-header">
+        <div class="modal-icon" style="background:rgba(16,185,129,0.12); color:#10B981; border-color:rgba(16,185,129,0.25);">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="8" y1="13" x2="16" y2="13" />
+            <line x1="8" y1="17" x2="16" y2="17" />
+            <polyline points="10 9 9 9 8 9" />
+          </svg>
+        </div>
+        <div>
+          <h2 id="import-excel-title" style="color:var(--primary); margin:0; font-size:1.2rem;">Importar Planilla Excel (.xlsx)</h2>
+          <span style="font-size:0.8rem; color:var(--text-muted);">Carga masiva de horarios y reservas al calendario institucional</span>
+        </div>
+        <button class="modal-close" id="import-excel-close" aria-label="Cerrar">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding-top:16px;">
+        <!-- Configuración de Mes y Modo de Carga -->
+        <div class="import-config-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:16px;">
+          <div>
+            <label style="display:block; font-size:0.84rem; font-weight:600; margin-bottom:6px; color:var(--text-primary);">
+              Mes de destino:
+            </label>
+            <div style="display:flex; gap:8px;">
+              <select id="import-month-select" class="month-select" style="flex:2; height:38px;">
+                <option value="01">Enero</option>
+                <option value="02">Febrero</option>
+                <option value="03">Marzo</option>
+                <option value="04">Abril</option>
+                <option value="05">Mayo</option>
+                <option value="06">Junio</option>
+                <option value="07">Julio</option>
+                <option value="08">Agosto</option>
+                <option value="09">Septiembre</option>
+                <option value="10">Octubre</option>
+                <option value="11">Noviembre</option>
+                <option value="12">Diciembre</option>
+              </select>
+              <select id="import-year-select" class="month-select" style="flex:1; height:38px;">
+                <option value="2025">2025</option>
+                <option value="2026">2026</option>
+                <option value="2027">2027</option>
+                <option value="2028">2028</option>
+                <option value="2029">2029</option>
+                <option value="2030">2030</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label style="display:block; font-size:0.84rem; font-weight:600; margin-bottom:6px; color:var(--text-primary);">
+              Modo de sincronización:
+            </label>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <label style="font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                <input type="radio" name="import-mode" value="merge" checked />
+                <span>Combinar / Actualizar <small style="color:var(--text-muted); font-weight:normal;">(Conserva existentes)</small></span>
+              </label>
+              <label style="font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                <input type="radio" name="import-mode" value="replace" />
+                <span style="color:#DC2626;">Reemplazar mes completo <small style="color:var(--text-muted); font-weight:normal;">(Limpia y carga)</small></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Banner de Descarga de Plantilla Modelo -->
+        <div class="template-download-banner" style="display:flex; align-items:center; justify-content:space-between; background:rgba(212,175,55,0.08); border:1px dashed #D4AF37; padding:10px 14px; border-radius:8px; margin-bottom:16px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#B38F1B" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span style="font-size:0.82rem; color:var(--text-primary);">
+              ¿No tienes una planilla? Descarga el modelo oficial con todas las semanas y bloques listos para llenar.
+            </span>
+          </div>
+          <button type="button" id="btn-download-template" class="btn-secondary" style="border-color:#D4AF37; color:#B38F1B; font-size:0.78rem; padding:6px 12px; white-space:nowrap;">
+            Descargar Plantilla (.xlsx)
+          </button>
+        </div>
+
+        <!-- Zona de Carga / Drag & Drop -->
+        <div class="excel-dropzone" id="excel-dropzone" style="border:2px dashed var(--border-light); border-radius:10px; padding:30px; text-align:center; cursor:pointer; transition:all 0.2s; background:var(--bg-surface-2);">
+          <input type="file" id="excel-file-input" accept=".xlsx, .xls" style="display:none;" />
+          <svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--primary); margin-bottom:8px;">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+          <p style="font-size:0.92rem; font-weight:600; color:var(--text-primary); margin:0 0 4px 0;" id="dropzone-text">
+            Arrastra tu archivo .xlsx aquí o <span style="color:var(--primary); text-decoration:underline;">haz clic para seleccionarlo</span>
+          </p>
+          <span style="font-size:0.76rem; color:var(--text-muted);" id="dropzone-subtext">
+            Soporta planillas exportadas del sistema o nóminas con formato institucional
+          </span>
+        </div>
+
+        <!-- Área de Vista Previa -->
+        <div id="import-preview-area" style="display:none; margin-top:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-size:0.85rem; font-weight:700; color:var(--text-primary);" id="preview-count-label">
+              ✓ 0 reservas detectadas
+            </span>
+            <span style="font-size:0.76rem; color:var(--text-muted);" id="preview-sheets-label">
+              0 hojas leídas
+            </span>
+          </div>
+          <div class="import-preview-table-wrapper" style="max-height:180px; overflow-y:auto; border:1px solid var(--border-light); border-radius:8px;">
+            <table class="preview-table" style="width:100%; border-collapse:collapse; font-size:0.78rem;">
+              <thead style="background:var(--bg-surface-2); position:sticky; top:0;">
+                <tr style="text-align:left; color:var(--text-secondary); border-bottom:1px solid var(--border-light);">
+                  <th style="padding:6px 10px;">Semana</th>
+                  <th style="padding:6px 10px;">Día</th>
+                  <th style="padding:6px 10px;">Bloque</th>
+                  <th style="padding:6px 10px;">Docente</th>
+                  <th style="padding:6px 10px;">Curso</th>
+                </tr>
+              </thead>
+              <tbody id="preview-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="import-error" class="form-error" style="margin-top:12px;" role="alert"></div>
+
+        <div class="form-actions" style="margin-top:20px;">
+          <button type="button" class="btn-secondary" id="import-cancel-btn">Cancelar</button>
+          <button type="button" class="btn-primary" id="import-submit-btn" disabled>
+            Confirmar e Importar al Calendario
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
        CARGA DE MÓDULOS JAVASCRIPT FRONTEND
   ═══════════════════════════════════════════════════════════════════ -->
-  <script src="js/api.js"></script>
-  <script src="js/auth.js"></script>
-  <script src="js/calendar.js"></script>
-  <script src="js/reservations.js"></script>
-  <script src="js/excel.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/api.js?v=1.2"></script>
+  <script src="js/auth.js?v=1.2"></script>
+  <script src="js/calendar.js?v=1.2"></script>
+  <script src="js/reservations.js?v=1.2"></script>
+  <script src="js/excel.js?v=1.2"></script>
+  <script src="js/users.js?v=1.2"></script>
+  <script src="js/app.js?v=1.2"></script>
 </body>
 
 </html>
