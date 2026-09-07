@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="gradHLL" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06162B"/>
+      <stop offset="100%" stop-color="#0B2545"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FCE084"/>
+      <stop offset="100%" stop-color="#D4AF37"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="110" fill="url(#gradHLL)"/>
+  <circle cx="256" cy="256" r="215" fill="none" stroke="url(#goldGrad)" stroke-width="10"/>
+  <circle cx="256" cy="256" r="195" fill="none" stroke="rgba(212,175,55,0.25)" stroke-width="2"/>
+  <!-- HLL Monogram -->
+  <text x="256" y="260" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="150" font-weight="900" fill="url(#goldGrad)" text-anchor="middle" dominant-baseline="middle" letter-spacing="6">HLL</text>
+  <text x="256" y="355" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="30" font-weight="700" fill="#FFFFFF" text-anchor="middle" letter-spacing="5">COLEGIO</text>
+  <text x="256" y="388" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="18" font-weight="600" fill="#D4AF37" text-anchor="middle" letter-spacing="3">SANTO DOMINGO</text>
+</svg>

@@ -17,6 +17,16 @@
   <!-- Librería SheetJS para Exportación a Excel -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
+  <!-- Configuración PWA (Progressive Web App) -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0B2545" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Calendario HLL" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <link rel="icon" type="image/png" href="/icons/icon-192.png" />
+
   <!-- Hoja de Estilos Institucional -->
   <link rel="stylesheet" href="css/sala_computacion.css" />
   <style>
@@ -333,6 +343,15 @@
             <option value="2030">2030</option>
           </select>
         </div>
+
+        <!-- Botón Instalar PWA (Se muestra cuando el navegador lo soporta) -->
+        <button id="btn-install-pwa" class="btn-secondary" style="display:none; border-color:rgba(212,175,55,0.4); color:#D4AF37;" title="Instalar aplicación en tu teléfono o PC">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+            <line x1="12" y1="18" x2="12.01" y2="18" />
+          </svg>
+          Instalar App
+        </button>
 
         <!-- Botón Exportar a Excel (Exclusivo Administrador) -->
         <button id="btn-export-excel" class="btn-secondary admin-only-btn"

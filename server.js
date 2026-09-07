@@ -18,6 +18,7 @@ const authRoutes = require('./src/routes/authRoutes');
 const reservationsRoutes = require('./src/routes/reservationsRoutes');
 const healthRoutes = require('./src/routes/healthRoutes');
 const errorHandler = require('./src/middleware/errorHandler');
+const { initKeepAlive } = require('./src/services/keepAliveService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -79,6 +80,9 @@ async function bootstrap() {
 🔒 Seguridad:               Autenticación con Hashing & Cambio Obligatorio
 ══════════════════════════════════════════════════════════════════
     `);
+
+    // Iniciar servicio KeepAlive anti-suspensión
+    initKeepAlive(PORT);
   });
 }
 

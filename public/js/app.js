@@ -61,4 +61,40 @@ document.addEventListener('DOMContentLoaded', () => {
   Calendar.init();
   Reservations.init();
   ExcelExport.init();
+
+  // Registro de Service Worker (PWA)
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+      .then((reg) => console.log('📱 [PWA] Service Worker activo:', reg.scope))
+      .catch((err) => console.warn('⚠️ [PWA] Service Worker no disponible:', err.message));
+  }
+});
+
+// Manejador de Instalación de la Aplicación (PWA)
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+
+  const installBtn = document.getElementById('btn-install-pwa');
+  if (installBtn) {
+    installBtn.style.display = 'inline-flex';
+    installBtn.addEventListener('click', async () => {
+      installBtn.style.display = 'none';
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          showToast('📲 ¡Aplicación instalada en tu dispositivo!');
+        }
+        deferredPrompt = null;
+      }
+    });
+  }
+});
+
+window.addEventListener('appinstalled', () => {
+  console.log('📱 [PWA] Aplicación instalada correctamente.');
+  const installBtn = document.getElementById('btn-install-pwa');
+  if (installBtn) installBtn.style.display = 'none';
 });
