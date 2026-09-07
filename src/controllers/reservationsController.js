@@ -13,7 +13,9 @@ const emailService = require('../services/emailService');
  */
 async function getMonthReservas(req, res) {
   try {
-    const yearMonth = req.query.month || '2026-08';
+    const now = new Date();
+    const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const yearMonth = req.query.month || currentYM;
     const pool = db.getPool();
 
     if (pool && db.isNeonConnected()) {

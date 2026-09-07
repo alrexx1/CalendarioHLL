@@ -25,17 +25,61 @@ const Calendar = {
   DAY_NAMES: { mon: 'Lunes', tue: 'Martes', wed: 'Miércoles', thu: 'Jueves', fri: 'Viernes' },
   DAY_CLASSES: { mon: 'day-mon', tue: 'day-tue', wed: 'day-wed', thu: 'day-thu', fri: 'day-fri' },
 
-  currentYearMonth: '2026-08',
+  currentYearMonth: '',
   currentWeek: 0,
   activeWeeks: [],
   db: {},
 
   init() {
+    // 1. Detectar automáticamente el año y mes en curso en tiempo real
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonthStr = String(now.getMonth() + 1).padStart(2, '0');
+    this.currentYearMonth = `${currentYear}-${currentMonthStr}`;
+
+    // 2. Sincronizar los selectores del DOM con la fecha actual
+    const monthSelect = document.getElementById('month-select');
+    const yearSelect = document.getElementById('year-select');
+
+    if (monthSelect) {
+      monthSelect.value = currentMonthStr;
+    }
+    if (yearSelect) {
+      if (!Array.from(yearSelect.options).some(opt => opt.value === String(currentYear))) {
+        const opt = document.createElement('option');
+        opt.value = String(currentYear);
+        opt.textContent = String(currentYear);
+        yearSelect.appendChild(opt);
+      }
+      yearSelect.value = String(currentYear);
+    }
+
+    // 3. Construir la estructura semanal del mes en curso
     this.activeWeeks = this.buildMonthStructure(this.currentYearMonth);
+
+    // 4. Posicionar automáticamente en la semana que estamos hoy
+    this.currentWeek = this.getTodayWeekIndex();
+
     this.bindEvents();
     this.render();
     this.fetchMonth(this.currentYearMonth);
     this.checkHealth();
+  },
+
+  getTodayWeekIndex() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < this.activeWeeks.length; i++) {
+      const from = new Date(this.activeWeeks[i].from);
+      from.setHours(0, 0, 0, 0);
+      const to = new Date(this.activeWeeks[i].to);
+      to.setHours(23, 59, 59, 999);
+      if (today >= from && today <= to) {
+        return i;
+      }
+    }
+    return 0;
   },
 
   buildMonthStructure(yearMonthKey) {
@@ -298,7 +342,15 @@ const Calendar = {
     const handleChange = () => {
       this.currentYearMonth = `${yearSelect.value}-${monthSelect.value}`;
       this.activeWeeks = this.buildMonthStructure(this.currentYearMonth);
-      this.currentWeek = 0;
+
+      const now = new Date();
+      const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      if (this.currentYearMonth === currentYM) {
+        this.currentWeek = this.getTodayWeekIndex();
+      } else {
+        this.currentWeek = 0;
+      }
+
       this.render();
       this.fetchMonth(this.currentYearMonth);
     };
