@@ -408,11 +408,227 @@ function verifySession(req, res) {
   });
 }
 
+/**
+ * ══════════════════════════════════════════════════════════════════════════════
+ * MÉTODOS DE ADMINISTRACIÓN DE USUARIOS (Exclusivo Rol 'administrator')
+ * ══════════════════════════════════════════════════════════════════════════════
+ */
+
+/**
+ * Obtiene todos los usuarios del sistema junto con el conteo de reservas
+ */
+async function getAllUsers(req, res) {
+  const pool = db.getPool();
+  if (!pool || !db.isNeonConnected()) {
+    return res.status(500).json({ success: false, message: 'Base de datos no disponible.' });
+  }
+
+  try {
+    const result = await pool.query(`
+      SELECT 
+        u.id, 
+        u.email, 
+        u.name, 
+        u.role, 
+        u.must_change_password, 
+        u.created_at, 
+        u.updated_at,
+        COUNT(r.id)::int AS total_reservas
+      FROM users u
+      LEFT JOIN reservas r ON LOWER(r.user_email) = LOWER(u.email)
+      GROUP BY u.id
+      ORDER BY 
+        CASE WHEN u.role = 'administrator' THEN 0 ELSE 1 END,
+        u.name ASC;
+    `);
+
+    return res.json({
+      success: true,
+      users: result.rows
+    });
+  } catch (err) {
+    console.error('Error al listar usuarios:', err.message);
+    return res.status(500).json({ success: false, message: 'Error interno al consultar usuarios.' });
+  }
+}
+
+/**
+ * Modifica el rol de un usuario (docente <-> administrator)
+ */
+async function updateUserRole(req, res) {
+  const targetId = parseInt(req.params.id, 10);
+  const { role } = req.body;
+  const currentAdminId = req.user.userId;
+
+  if (isNaN(targetId)) {
+    return res.status(400).json({ success: false, message: 'ID de usuario inválido.' });
+  }
+
+  if (!['docente', 'administrator'].includes(role)) {
+    return res.status(400).json({ success: false, message: 'Rol no permitido. Debe ser "docente" o "administrator".' });
+  }
+
+  // Evitar que el administrador se quite permisos a sí mismo
+  if (targetId === currentAdminId && role !== 'administrator') {
+    return res.status(400).json({
+      success: false,
+      message: 'Por seguridad institucional, no puede revocar sus propios permisos de Administrador.'
+    });
+  }
+
+  const pool = db.getPool();
+  if (!pool || !db.isNeonConnected()) {
+    return res.status(500).json({ success: false, message: 'Base de datos no disponible.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE users SET role = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, email, name, role;`,
+      [role, targetId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado.' });
+    }
+
+    const updated = result.rows[0];
+    console.log(`🛡️ [Admin] Rol actualizado para ${updated.email}: ${updated.role} (por admin ID ${currentAdminId})`);
+
+    return res.json({
+      success: true,
+      message: `Rol de ${updated.name} actualizado a "${updated.role === 'administrator' ? 'Administrador' : 'Docente'}" exitosamente.`,
+      user: updated
+    });
+  } catch (err) {
+    console.error('Error al actualizar rol:', err.message);
+    return res.status(500).json({ success: false, message: 'Error al cambiar rol del usuario.' });
+  }
+}
+
+/**
+ * Restablece la contraseña de un usuario desde el panel de administración
+ * Puede asignar una contraseña manual/temporal obligatoria o enviar correo de reseteo
+ */
+async function adminResetUserPassword(req, res) {
+  const targetId = parseInt(req.params.id, 10);
+  const { mode, temporaryPassword } = req.body; // mode: 'temporary' | 'email'
+
+  if (isNaN(targetId)) {
+    return res.status(400).json({ success: false, message: 'ID de usuario inválido.' });
+  }
+
+  const pool = db.getPool();
+  if (!pool || !db.isNeonConnected()) {
+    return res.status(500).json({ success: false, message: 'Base de datos no disponible.' });
+  }
+
+  try {
+    const userRes = await pool.query(`SELECT id, email, name, role FROM users WHERE id = $1;`, [targetId]);
+    if (userRes.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado.' });
+    }
+    const user = userRes.rows[0];
+
+    if (mode === 'email') {
+      const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+
+      await pool.query(
+        `UPDATE users SET reset_token = $1, reset_token_expires = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3;`,
+        [resetCode, expiresAt, user.id]
+      );
+
+      // Enviar correo con plantilla oficial
+      await emailService.sendPasswordResetEmail({
+        email: user.email,
+        name: user.name,
+        resetCode
+      });
+
+      return res.json({
+        success: true,
+        message: `Se envió un correo con el código de recuperación a ${user.email}.`
+      });
+    } else {
+      // Modo 'temporary': Asignar contraseña temporal
+      const newPass = (temporaryPassword && temporaryPassword.trim().length >= 8) 
+        ? temporaryPassword.trim() 
+        : `HLL${Math.floor(1000 + Math.random() * 9000)}*`;
+
+      const newHash = hashPassword(newPass);
+
+      await pool.query(`
+        UPDATE users 
+        SET password_hash = $1, 
+            must_change_password = TRUE, 
+            reset_token = NULL, 
+            reset_token_expires = NULL,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2;
+      `, [newHash, user.id]);
+
+      console.log(`🔑 [Admin] Contraseña temporal asignada a ${user.email}: ${newPass}`);
+
+      return res.json({
+        success: true,
+        message: `Contraseña temporal asignada exitosamente para ${user.name}. Al iniciar sesión se le exigirá cambiarla.`,
+        temporaryPassword: newPass
+      });
+    }
+  } catch (err) {
+    console.error('Error al resetear contraseña como admin:', err.message);
+    return res.status(500).json({ success: false, message: 'Error interno al restablecer contraseña.' });
+  }
+}
+
+/**
+ * Elimina un usuario del sistema (Excluye al administrador en sesión)
+ */
+async function deleteUser(req, res) {
+  const targetId = parseInt(req.params.id, 10);
+  const currentAdminId = req.user.userId;
+
+  if (isNaN(targetId)) {
+    return res.status(400).json({ success: false, message: 'ID de usuario inválido.' });
+  }
+
+  if (targetId === currentAdminId) {
+    return res.status(400).json({ success: false, message: 'No puede eliminar su propia cuenta de administrador.' });
+  }
+
+  const pool = db.getPool();
+  if (!pool || !db.isNeonConnected()) {
+    return res.status(500).json({ success: false, message: 'Base de datos no disponible.' });
+  }
+
+  try {
+    const result = await pool.query(`DELETE FROM users WHERE id = $1 RETURNING email, name;`, [targetId]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado.' });
+    }
+
+    const deleted = result.rows[0];
+    console.log(`🗑️ [Admin] Usuario eliminado: ${deleted.name} (${deleted.email})`);
+
+    return res.json({
+      success: true,
+      message: `El usuario ${deleted.name} (${deleted.email}) ha sido eliminado correctamente.`
+    });
+  } catch (err) {
+    console.error('Error al eliminar usuario:', err.message);
+    return res.status(500).json({ success: false, message: 'Error al eliminar usuario.' });
+  }
+}
+
 module.exports = {
   login,
   changePassword,
   registerTeacher,
   forgotPassword,
   resetPassword,
-  verifySession
+  verifySession,
+  getAllUsers,
+  updateUserRole,
+  adminResetUserPassword,
+  deleteUser
 };

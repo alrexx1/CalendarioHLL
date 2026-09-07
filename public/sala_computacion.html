@@ -368,6 +368,18 @@
           Exportar
         </button>
 
+        <!-- Botón Gestión de Docentes (Exclusivo Administrador) -->
+        <button id="btn-manage-users" class="btn-secondary admin-only-btn"
+          title="Gestión de Cuentas y Docentes" style="display:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 00-3-3.87" />
+            <path d="M16 3.13a4 4 0 010 7.75" />
+          </svg>
+          Docentes
+        </button>
+
         <!-- Indicador de Sesión de Usuario -->
         <div id="teacher-session-info"
           style="display:none; align-items:center; gap:8px; font-size:.82rem; color:var(--text-secondary);">
@@ -719,6 +731,116 @@
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════════════
+       MODAL: GESTIÓN DE DOCENTES Y USUARIOS (ADMINISTRADOR)
+  ═══════════════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="users-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="users-modal-title">
+    <div class="modal modal-lg" id="users-modal" style="max-width: 900px; width: 95%;">
+      <div class="modal-header">
+        <div class="modal-icon" style="background:rgba(11,37,69,0.08); color:var(--primary); border-color:rgba(11,37,69,0.15);">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 00-3-3.87" />
+            <path d="M16 3.13a4 4 0 010 7.75" />
+          </svg>
+        </div>
+        <div>
+          <h2 id="users-modal-title" style="color:var(--primary); margin:0; font-size:1.25rem;">Gestión de Docentes y Cuentas</h2>
+          <span style="font-size:0.8rem; color:var(--text-muted);">Administración de usuarios de la Intranet HLL</span>
+        </div>
+        <button class="modal-close" id="users-modal-close" aria-label="Cerrar">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding-top:16px;">
+        <!-- Barra de herramientas: Filtro y Contadores -->
+        <div class="users-toolbar">
+          <div class="users-search-box">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input type="text" id="users-search-input" placeholder="Buscar por nombre o correo (@colegiohll.cl)..." />
+          </div>
+          <div class="users-stats-badges">
+            <span class="user-stat-badge" id="badge-total-users">Total: 0</span>
+            <span class="user-stat-badge badge-admin" id="badge-total-admins">Admins: 0</span>
+            <span class="user-stat-badge badge-docente" id="badge-total-teachers">Docentes: 0</span>
+          </div>
+        </div>
+
+        <!-- Contenedor con Scroll de la Lista de Usuarios -->
+        <div class="users-table-container">
+          <div id="users-loading" style="text-align:center; padding:35px; color:var(--text-muted);">
+            <div class="spinner" style="margin:0 auto 10px;"></div>
+            Cargando nómina institucional...
+          </div>
+          <div id="users-list" class="users-list-wrapper" style="display:none;"></div>
+          <div id="users-empty" style="display:none; text-align:center; padding:35px; color:var(--text-muted); font-size:0.9rem;">
+            No se encontraron usuarios que coincidan con la búsqueda.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL SECUNDARIO: ACCIÓN DE RESETEO / ASIGNACIÓN DE CONTRASEÑA -->
+  <div class="modal-overlay" id="user-action-overlay" role="dialog" aria-modal="true" style="z-index: 10002;">
+    <div class="modal modal-sm" id="user-action-modal">
+      <div class="modal-header">
+        <div class="modal-icon" style="background:rgba(212,175,55,0.15); color:#D4AF37;">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" />
+            <path d="M7 11V7a5 5 0 0110 0v4" />
+          </svg>
+        </div>
+        <div>
+          <h2 style="color:var(--primary); font-size:1.1rem; margin:0;" id="user-action-title">Restablecer Contraseña</h2>
+          <span style="font-size:0.78rem; color:var(--text-muted);" id="user-action-subtitle">Docente</span>
+        </div>
+        <button class="modal-close" id="user-action-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:16px; line-height:1.4;">
+          Seleccione cómo desea restablecer la contraseña del usuario:
+        </p>
+        <form id="user-reset-form">
+          <input type="hidden" id="action-user-id" />
+          
+          <div class="form-group" style="margin-bottom:12px;">
+            <label style="font-size:0.85rem; font-weight:600; display:flex; align-items:center; gap:8px; cursor:pointer;">
+              <input type="radio" name="reset-option" value="email" checked />
+              Enviar correo con código de recuperación
+            </label>
+            <p style="font-size:0.75rem; color:var(--text-muted); margin-left:22px; margin-top:2px;">
+              El docente recibirá un correo oficial de Soporte Laboratorio HLL.
+            </p>
+          </div>
+
+          <div class="form-group" style="margin-top:14px;">
+            <label style="font-size:0.85rem; font-weight:600; display:flex; align-items:center; gap:8px; cursor:pointer;">
+              <input type="radio" name="reset-option" value="temporary" />
+              Asignar contraseña temporal manual
+            </label>
+            <div id="temp-pass-field" style="display:none; margin-left:22px; margin-top:8px;">
+              <input type="text" id="action-temp-pass" placeholder="Ej: HLL2026.Docente (mínimo 8 caracteres)" style="width:100%; font-size:0.85rem;" />
+              <p style="font-size:0.74rem; color:var(--text-muted); margin-top:4px;">
+                Al iniciar sesión, se le exigirá obligatoriamente crear una contraseña nueva.
+              </p>
+            </div>
+          </div>
+
+          <div id="user-action-error" class="form-error" role="alert"></div>
+
+          <div class="form-actions" style="margin-top:18px;">
+            <button type="button" class="btn-secondary" id="user-action-cancel">Cancelar</button>
+            <button type="submit" class="btn-primary" id="user-action-submit">Aplicar Cambio</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
        CARGA DE MÓDULOS JAVASCRIPT FRONTEND
   ═══════════════════════════════════════════════════════════════════ -->
   <script src="js/api.js"></script>
@@ -726,6 +848,7 @@
   <script src="js/calendar.js"></script>
   <script src="js/reservations.js"></script>
   <script src="js/excel.js"></script>
+  <script src="js/users.js"></script>
   <script src="js/app.js"></script>
 </body>
 

@@ -8,7 +8,7 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
-const { requireAuth } = require('../middleware/authMiddleware');
+const { requireAuth, requireAdmin } = require('../middleware/authMiddleware');
 
 // Inicio de sesión unificado
 router.post('/login', authController.login);
@@ -26,5 +26,13 @@ router.post('/reset-password', authController.resetPassword);
 
 // Verificación de sesión actual
 router.get('/me', requireAuth, authController.verifySession);
+
+// ═══════════════════════════════════════════════════════════════════
+// Rutas Administrativas de Gestión de Usuarios y Docentes
+// ═══════════════════════════════════════════════════════════════════
+router.get('/users', requireAdmin, authController.getAllUsers);
+router.patch('/users/:id/role', requireAdmin, authController.updateUserRole);
+router.post('/users/:id/reset-password', requireAdmin, authController.adminResetUserPassword);
+router.delete('/users/:id', requireAdmin, authController.deleteUser);
 
 module.exports = router;

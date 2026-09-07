@@ -860,3 +860,284 @@ select:not(.month-select):focus {
   text-decoration: underline;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   PANEL DE GESTIÓN DE DOCENTES Y USUARIOS (ADMINISTRADOR)
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.users-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.users-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-surface-2, #F8FAFC);
+  border: 1px solid var(--border-light, #E2E8F0);
+  border-radius: 8px;
+  padding: 8px 12px;
+  flex: 1;
+  min-width: 250px;
+}
+
+.users-search-box svg {
+  color: var(--text-muted, #64748B);
+  flex-shrink: 0;
+}
+
+.users-search-box input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.85rem;
+  color: var(--text-primary, #0B2545);
+  width: 100%;
+}
+
+.users-stats-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.user-stat-badge {
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: var(--bg-surface-2, #F1F5F9);
+  border: 1px solid var(--border-light, #CBD5E1);
+  color: var(--text-secondary, #475569);
+}
+
+.user-stat-badge.badge-admin {
+  background: rgba(11, 37, 69, 0.08);
+  color: #0B2545;
+  border-color: rgba(11, 37, 69, 0.2);
+}
+
+.user-stat-badge.badge-docente {
+  background: rgba(212, 175, 55, 0.12);
+  color: #B38F1B;
+  border-color: rgba(212, 175, 55, 0.3);
+}
+
+.users-table-container {
+  max-height: 58vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.users-list-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.user-card-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #ffffff;
+  border: 1px solid var(--border-light, #E2E8F0);
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  gap: 12px;
+}
+
+.user-card-item:hover {
+  border-color: rgba(11, 37, 69, 0.28);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+}
+
+.user-card-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  letter-spacing: 0.5px;
+}
+
+.avatar-admin {
+  background: linear-gradient(135deg, #0B2545, #133E6D);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(11, 37, 69, 0.25);
+}
+
+.avatar-teacher {
+  background: linear-gradient(135deg, #F8FAFC, #E2E8F0);
+  color: #0B2545;
+  border: 1px solid #CBD5E1;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.user-name-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-primary, #0B2545);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-tag-you {
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: #0B2545;
+  color: #ffffff;
+  padding: 1px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.user-email {
+  font-size: 0.78rem;
+  color: var(--text-muted, #64748B);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-badges-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.u-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+.badge-role-admin {
+  background: rgba(11, 37, 69, 0.08);
+  color: #0B2545;
+  border: 1px solid rgba(11, 37, 69, 0.15);
+}
+
+.badge-role-teacher {
+  background: #F1F5F9;
+  color: #475569;
+  border: 1px solid #E2E8F0;
+}
+
+.badge-active {
+  background: #ECFDF5;
+  color: #059669;
+  border: 1px solid #A7F3D0;
+}
+
+.badge-warning {
+  background: #FFFBEB;
+  color: #D97706;
+  border: 1px solid #FDE68A;
+}
+
+.badge-reservas {
+  background: #EFF6FF;
+  color: #2563EB;
+  border: 1px solid #BFDBFE;
+}
+
+.user-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.btn-u-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 5px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid var(--border-light, #E2E8F0);
+  background: #ffffff;
+}
+
+.btn-u-action:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.btn-u-role {
+  color: #0B2545;
+}
+
+.btn-u-role:hover:not(:disabled) {
+  background: rgba(11, 37, 69, 0.06);
+  border-color: #0B2545;
+}
+
+.btn-u-reset {
+  color: #B38F1B;
+}
+
+.btn-u-reset:hover:not(:disabled) {
+  background: rgba(212, 175, 55, 0.1);
+  border-color: #D4AF37;
+}
+
+.btn-u-delete {
+  color: #DC2626;
+  padding: 5px 7px;
+}
+
+.btn-u-delete:hover:not(:disabled) {
+  background: #FEF2F2;
+  border-color: #EF4444;
+}
+
+@media (max-width: 640px) {
+  .user-card-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .user-card-actions {
+    justify-content: flex-end;
+    margin-top: 8px;
+    border-top: 1px dashed #E2E8F0;
+    padding-top: 8px;
+  }
+}
+

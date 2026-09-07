@@ -106,6 +106,31 @@ const API = {
     return this.request('/api/auth/me');
   },
 
+  // Gestión de Usuarios (Exclusivo Administrador)
+  getUsers() {
+    return this.request('/api/auth/users');
+  },
+
+  updateUserRole(userId, role) {
+    return this.request(`/api/auth/users/${userId}/role`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role })
+    });
+  },
+
+  adminResetPassword(userId, payload = {}) {
+    return this.request(`/api/auth/users/${userId}/reset-password`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  deleteUser(userId) {
+    return this.request(`/api/auth/users/${userId}`, {
+      method: 'DELETE'
+    });
+  },
+
   // Reservas
   getReservas(month) {
     return this.request(`/api/reservas?month=${encodeURIComponent(month)}`);
