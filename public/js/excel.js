@@ -2,7 +2,7 @@
  * ══════════════════════════════════════════════════════════════════════════════
  * COLEGIO SANTO DOMINGO HELEN LEE LASSEN (HLL)
  * Módulo de Exportación e Importación de Planillas Excel (SheetJS)
- * Exclusivo para Administrador
+ * Formato Oficial Idéntico al Documento Institucional HLL
  * ══════════════════════════════════════════════════════════════════════════════
  */
 
@@ -10,13 +10,28 @@ const ExcelExport = {
   parsedReservations: [],
   selectedFile: null,
 
-  // Bloques estándar reconocidos
+  MONTH_NAMES: {
+    '01': 'ENERO',
+    '02': 'FEBRERO',
+    '03': 'MARZO',
+    '04': 'ABRIL',
+    '05': 'MAYO',
+    '06': 'JUNIO',
+    '07': 'JULIO',
+    '08': 'AGOSTO',
+    '09': 'SEPTIEMBRE',
+    '10': 'OCTUBRE',
+    '11': 'NOVIEMBRE',
+    '12': 'DICIEMBRE'
+  },
+
   STANDARD_SLOTS: [
     '08:00 - 08:45',
     '08:45 - 09:30',
     '09:30 - 10:15',
     '10:30 - 11:15',
     '11:15 - 12:00',
+    '11:30 - 12:15',
     '12:15 - 13:00',
     '13:00 - 13:45',
     '14:30 - 15:15',
@@ -95,7 +110,183 @@ const ExcelExport = {
   },
 
   // ═══════════════════════════════════════════════════════════════════
-  // EXPORTACIÓN DE PLANILLAS
+  // CONSTRUCCIÓN DEL FORMATO INSTITUCIONAL OFICIAL (HLL)
+  // ═══════════════════════════════════════════════════════════════════
+  buildOfficialSheetData(week, yearMonth) {
+    const [year, month] = (yearMonth || Calendar.currentYearMonth || '2026-09').split('-');
+    const monthName = this.MONTH_NAMES[month] || 'SEPTIEMBRE';
+
+    // Formatear fechas D/M/YYYY
+    const fromStr = week?.from ? `${week.from.getDate()}/${week.from.getMonth() + 1}/${week.from.getFullYear()}` : '';
+    const toStr = week?.to ? `${week.to.getDate()}/${week.to.getMonth() + 1}/${week.to.getFullYear()}` : '';
+
+    const res = week?.reservations || {};
+    const mon = res.mon || {};
+    const tue = res.tue || {};
+    const wed = res.wed || {};
+    const thu = res.thu || {};
+    const fri = res.fri || {};
+
+    const wsData = [
+      [], // Fila 1 (margen superior)
+      ['', `Registro y Uso de Sala de Computación ${year}`], // Fila 2 (B2)
+      [], // Fila 3
+      ['', 'MES DE:', monthName], // Fila 4 (B4: MES DE:, C4:D4: Nombre Mes)
+      ['', 'SEMANA DEL', fromStr, '', 'HASTA EL', toStr], // Fila 5 (B5: SEMANA DEL, C5:D5, E5: HASTA EL, F5:G5)
+      [], // Fila 6
+      // Fila 7: Días de la semana
+      ['', '', 'LUNES', '', 'MARTES', '', 'MIERCOLES', '', 'JUEVES', '', '', 'VIERNES', ''],
+      // Fila 8: Subencabezados DOCENTE / CURSO
+      ['', '', 'DOCENTE', 'CURSO', 'DOCENTE', 'CURSO', 'DOCENTE', 'CURSO', 'DOCENTE', 'CURSO', '', 'DOCENTE', 'CURSO'],
+
+      // Fila 9: Bloque 1
+      ['', '08:00 - 08:45',
+        mon['08:00 - 08:45']?.docente || '', mon['08:00 - 08:45']?.curso || '',
+        tue['08:00 - 08:45']?.docente || '', tue['08:00 - 08:45']?.curso || '',
+        wed['08:00 - 08:45']?.docente || '', wed['08:00 - 08:45']?.curso || '',
+        thu['08:00 - 08:45']?.docente || '', thu['08:00 - 08:45']?.curso || '',
+        '08:00 - 08:45',
+        fri['08:00 - 08:45']?.docente || '', fri['08:00 - 08:45']?.curso || ''
+      ],
+      // Fila 10: Bloque 2
+      ['', '08:45 - 09:30',
+        mon['08:45 - 09:30']?.docente || '', mon['08:45 - 09:30']?.curso || '',
+        tue['08:45 - 09:30']?.docente || '', tue['08:45 - 09:30']?.curso || '',
+        wed['08:45 - 09:30']?.docente || '', wed['08:45 - 09:30']?.curso || '',
+        thu['08:45 - 09:30']?.docente || '', thu['08:45 - 09:30']?.curso || '',
+        '08:45 - 09:30',
+        fri['08:45 - 09:30']?.docente || '', fri['08:45 - 09:30']?.curso || ''
+      ],
+      // Fila 11: Bloque 3
+      ['', '09:30 - 10:15',
+        mon['09:30 - 10:15']?.docente || '', mon['09:30 - 10:15']?.curso || '',
+        tue['09:30 - 10:15']?.docente || '', tue['09:30 - 10:15']?.curso || '',
+        wed['09:30 - 10:15']?.docente || '', wed['09:30 - 10:15']?.curso || '',
+        thu['09:30 - 10:15']?.docente || '', thu['09:30 - 10:15']?.curso || '',
+        '',
+        fri['09:30 - 10:15']?.docente || '', fri['09:30 - 10:15']?.curso || ''
+      ],
+
+      // Fila 12: Recreo 1 (Espacio en blanco)
+      [],
+
+      // Fila 13: Bloque 4
+      ['', '10:30 - 11:15',
+        mon['10:30 - 11:15']?.docente || '', mon['10:30 - 11:15']?.curso || '',
+        tue['10:30 - 11:15']?.docente || '', tue['10:30 - 11:15']?.curso || '',
+        wed['10:30 - 11:15']?.docente || '', wed['10:30 - 11:15']?.curso || '',
+        thu['10:30 - 11:15']?.docente || '', thu['10:30 - 11:15']?.curso || '',
+        '',
+        '', ''
+      ],
+      // Fila 14: Bloque 5 (En viernes corresponde a 10:30 - 11:15)
+      ['', '11:15 - 12:00',
+        mon['11:15 - 12:00']?.docente || '', mon['11:15 - 12:00']?.curso || '',
+        tue['11:15 - 12:00']?.docente || '', tue['11:15 - 12:00']?.curso || '',
+        wed['11:15 - 12:00']?.docente || '', wed['11:15 - 12:00']?.curso || '',
+        thu['11:15 - 12:00']?.docente || '', thu['11:15 - 12:00']?.curso || '',
+        '10:30 - 11:15',
+        fri['10:30 - 11:15']?.docente || '', fri['10:30 - 11:15']?.curso || ''
+      ],
+
+      // Fila 15: Recreo 2 (Espacio en blanco)
+      [],
+
+      // Fila 16: Bloque 6 (En viernes 11:30 - 12:15 o 11:15 - 12:00)
+      ['', '12:15 - 13:00',
+        mon['12:15 - 13:00']?.docente || '', mon['12:15 - 13:00']?.curso || '',
+        tue['12:15 - 13:00']?.docente || '', tue['12:15 - 13:00']?.curso || '',
+        wed['12:15 - 13:00']?.docente || '', wed['12:15 - 13:00']?.curso || '',
+        thu['12:15 - 13:00']?.docente || '', thu['12:15 - 13:00']?.curso || '',
+        '11:30 - 12:15',
+        (fri['11:30 - 12:15'] || fri['11:15 - 12:00'])?.docente || '', (fri['11:30 - 12:15'] || fri['11:15 - 12:00'])?.curso || ''
+      ],
+      // Fila 17: Bloque 7 (En viernes 12:15 - 13:00)
+      ['', '13:00 - 13:45',
+        mon['13:00 - 13:45']?.docente || '', mon['13:00 - 13:45']?.curso || '',
+        tue['13:00 - 13:45']?.docente || '', tue['13:00 - 13:45']?.curso || '',
+        wed['13:00 - 13:45']?.docente || '', wed['13:00 - 13:45']?.curso || '',
+        thu['13:00 - 13:45']?.docente || '', thu['13:00 - 13:45']?.curso || '',
+        '12:15 - 13:00',
+        (fri['12:15 - 13:00'] || fri['13:00 - 13:45'])?.docente || '', (fri['12:15 - 13:00'] || fri['13:00 - 13:45'])?.curso || ''
+      ],
+
+      // Fila 18: Almuerzo (Espacio en blanco)
+      [],
+
+      // Fila 19: Bloque 8
+      ['', '14:30 - 15:15',
+        mon['14:30 - 15:15']?.docente || '', mon['14:30 - 15:15']?.curso || '',
+        tue['14:30 - 15:15']?.docente || '', tue['14:30 - 15:15']?.curso || '',
+        wed['14:30 - 15:15']?.docente || '', wed['14:30 - 15:15']?.curso || '',
+        thu['14:30 - 15:15']?.docente || '', thu['14:30 - 15:15']?.curso || '',
+        '',
+        '', ''
+      ],
+      // Fila 20: Bloque 9
+      ['', '15:15 - 16:00',
+        mon['15:15 - 16:00']?.docente || '', mon['15:15 - 16:00']?.curso || '',
+        tue['15:15 - 16:00']?.docente || '', tue['15:15 - 16:00']?.curso || '',
+        wed['15:15 - 16:00']?.docente || '', wed['15:15 - 16:00']?.curso || '',
+        thu['15:15 - 16:00']?.docente || '', thu['15:15 - 16:00']?.curso || '',
+        '',
+        '', ''
+      ],
+
+      // Fila 21: Espacio
+      [],
+      // Fila 22: NOTA institucional
+      ['', 'NOTA:', 'Los bloques sombreados corresponden a horarios donde no está disponible la sala.']
+    ];
+
+    return wsData;
+  },
+
+  getSheetMerges() {
+    return [
+      // B2:H2 (Título principal)
+      { s: { r: 1, c: 1 }, e: { r: 1, c: 7 } },
+      // C4:D4 (Nombre de Mes)
+      { s: { r: 3, c: 2 }, e: { r: 3, c: 3 } },
+      // C5:D5 (Fecha Desde)
+      { s: { r: 4, c: 2 }, e: { r: 4, c: 3 } },
+      // F5:G5 (Fecha Hasta)
+      { s: { r: 4, c: 5 }, e: { r: 4, c: 6 } },
+      // C7:D7 (LUNES)
+      { s: { r: 6, c: 2 }, e: { r: 6, c: 3 } },
+      // E7:F7 (MARTES)
+      { s: { r: 6, c: 4 }, e: { r: 6, c: 5 } },
+      // G7:H7 (MIERCOLES)
+      { s: { r: 6, c: 6 }, e: { r: 6, c: 7 } },
+      // I7:J7 (JUEVES)
+      { s: { r: 6, c: 8 }, e: { r: 6, c: 9 } },
+      // L7:M7 (VIERNES)
+      { s: { r: 6, c: 11 }, e: { r: 6, c: 12 } },
+      // C22:J22 (Nota informativa)
+      { s: { r: 21, c: 2 }, e: { r: 21, c: 9 } }
+    ];
+  },
+
+  getSheetCols() {
+    return [
+      { wch: 3 },   // A
+      { wch: 14 },  // B (Bloque Horario Lunes-Jueves)
+      { wch: 18 },  // C (Lunes Docente)
+      { wch: 15 },  // D (Lunes Curso)
+      { wch: 18 },  // E (Martes Docente)
+      { wch: 15 },  // F (Martes Curso)
+      { wch: 18 },  // G (Miércoles Docente)
+      { wch: 15 },  // H (Miércoles Curso)
+      { wch: 18 },  // I (Jueves Docente)
+      { wch: 15 },  // J (Jueves Curso)
+      { wch: 14 },  // K (Bloque Horario Viernes)
+      { wch: 18 },  // L (Viernes Docente)
+      { wch: 15 }   // M (Viernes Curso)
+    ];
+  },
+
+  // ═══════════════════════════════════════════════════════════════════
+  // EXPORTACIÓN DE PLANILLAS DEL MES ACTUAL
   // ═══════════════════════════════════════════════════════════════════
   exportCurrentMonth() {
     if (typeof XLSX === 'undefined') {
@@ -104,49 +295,27 @@ const ExcelExport = {
     }
 
     const wb = XLSX.utils.book_new();
-    const ym = Calendar.currentYearMonth;
+    const ym = Calendar.currentYearMonth || '2026-09';
+    const [year, month] = ym.split('-');
+    const monthName = this.MONTH_NAMES[month] || 'SEPTIEMBRE';
 
     Calendar.activeWeeks.forEach((w, wIdx) => {
-      const wsData = [
-        ['', '', `Registro y Uso de Sala de Computación — Colegio HLL`],
-        ['', 'MES DE:', ym],
-        ['', 'SEMANA DEL', Calendar.formatDate(w.from), '', 'HASTA EL', Calendar.formatDate(w.to)],
-        [],
-        ['', '', 'LUNES', '', 'MARTES', '', 'MIÉRCOLES', '', 'JUEVES', '', '', 'VIERNES', ''],
-        ['', '', 'DOCENTE', 'CURSO', 'DOCENTE', 'CURSO', 'DOCENTE', 'CURSO', 'DOCENTE', 'CURSO', '', 'DOCENTE', 'CURSO']
-      ];
-
-      Calendar.TIME_SLOTS.forEach(ts => {
-        if (ts.break) return;
-
-        const mon = w.reservations.mon?.[ts.id] || {};
-        const tue = w.reservations.tue?.[ts.id] || {};
-        const wed = w.reservations.wed?.[ts.id] || {};
-        const thu = w.reservations.thu?.[ts.id] || {};
-        const fri = w.reservations.fri?.[ts.id] || {};
-
-        wsData.push([
-          '',
-          ts.id,
-          mon.docente || '', mon.curso || '',
-          tue.docente || '', tue.curso || '',
-          wed.docente || '', wed.curso || '',
-          thu.docente || '', thu.curso || '',
-          ts.id,
-          fri.docente || '', fri.curso || ''
-        ]);
-      });
-
+      const wsData = this.buildOfficialSheetData(w, ym);
       const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+      ws['!merges'] = this.getSheetMerges();
+      ws['!cols'] = this.getSheetCols();
+
       XLSX.utils.book_append_sheet(wb, ws, `SEMANA_0${wIdx + 1}`);
     });
 
-    XLSX.writeFile(wb, `RESERVAS_SALA_COMPUTACION_${ym}.xlsx`);
-    showToast('📥 Planilla Excel exportada exitosamente');
+    const fileName = `${month}_${monthName}_SALA_DE_COMPUTACION_${year}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    showToast(`📥 Planilla exportada: ${fileName}`);
   },
 
   // ═══════════════════════════════════════════════════════════════════
-  // DESCARGA DE PLANTILLA MODELO OFICIAL
+  // DESCARGA DE PLANTILLA MODELO OFICIAL (VACÍA PARA LLENAR)
   // ═══════════════════════════════════════════════════════════════════
   downloadTemplate() {
     if (typeof XLSX === 'undefined') {
@@ -155,34 +324,30 @@ const ExcelExport = {
     }
 
     const wb = XLSX.utils.book_new();
+    const ym = Calendar.currentYearMonth || '2026-09';
+    const [year, month] = ym.split('-');
+    const monthName = this.MONTH_NAMES[month] || 'SEPTIEMBRE';
 
+    // Generar 5 semanas modelo con sus rangos estimados
     for (let wIdx = 0; wIdx < 5; wIdx++) {
-      const wsData = [
-        ['', '', 'Colegio Santo Domingo Helen Lee Lassen — Plantilla Oficial de Horarios'],
-        ['', 'INSTRUCCIONES:', 'Complete las columnas DOCENTE y CURSO para cada bloque horario según corresponda.'],
-        [],
-        ['', 'HORARIO', 'LUNES', '', 'MARTES', '', 'MIÉRCOLES', '', 'JUEVES', '', 'VIERNES', ''],
-        ['', 'BLOQUE', 'DOCENTE', 'CURSO', 'DOCENTE', 'CURSO', 'DOCENTE', 'CURSO', 'DOCENTE', 'CURSO', 'DOCENTE', 'CURSO']
-      ];
+      const sampleWeek = {
+        from: new Date(Number(year), Number(month) - 1, 1 + wIdx * 7),
+        to: new Date(Number(year), Number(month) - 1, 5 + wIdx * 7),
+        reservations: {}
+      };
 
-      this.STANDARD_SLOTS.forEach(slot => {
-        wsData.push([
-          '',
-          slot,
-          '', '', // Lunes
-          '', '', // Martes
-          '', '', // Miércoles
-          '', '', // Jueves
-          '', ''  // Viernes
-        ]);
-      });
-
+      const wsData = this.buildOfficialSheetData(sampleWeek, ym);
       const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+      ws['!merges'] = this.getSheetMerges();
+      ws['!cols'] = this.getSheetCols();
+
       XLSX.utils.book_append_sheet(wb, ws, `SEMANA_0${wIdx + 1}`);
     }
 
-    XLSX.writeFile(wb, 'PLANTILLA_HORARIOS_SALA_HLL.xlsx');
-    showToast('📄 Plantilla oficial descargada con éxito');
+    const fileName = `${month}_${monthName}_SALA_DE_COMPUTACION_${year}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    showToast(`📄 Plantilla oficial descargada: ${fileName}`);
   },
 
   // ═══════════════════════════════════════════════════════════════════
@@ -198,7 +363,6 @@ const ExcelExport = {
     const dropText = document.getElementById('dropzone-text');
     const fileInput = document.getElementById('excel-file-input');
 
-    // Inicializar mes y año con el actual del calendario
     if (Calendar.currentYearMonth) {
       const [y, m] = Calendar.currentYearMonth.split('-');
       if (yearSelect) yearSelect.value = y;
@@ -263,7 +427,6 @@ const ExcelExport = {
     const reservations = [];
     let sheetsProcessed = 0;
 
-    // Recorrer cada hoja de cálculo
     wb.SheetNames.forEach((sheetName, index) => {
       const sheet = wb.Sheets[sheetName];
       if (!sheet) return;
@@ -271,7 +434,6 @@ const ExcelExport = {
       const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
       if (!rows || rows.length === 0) return;
 
-      // Determinar índice de la semana (0 a 4)
       let weekIdx = index;
       const weekMatch = sheetName.match(/(\d+)/);
       if (weekMatch) {
@@ -281,7 +443,6 @@ const ExcelExport = {
         }
       }
 
-      // Buscar si es formato estándar o tabla plana
       const parsedSheetRes = this.parseSheetRows(rows, weekIdx);
       if (parsedSheetRes.length > 0) {
         reservations.push(...parsedSheetRes);
@@ -303,60 +464,40 @@ const ExcelExport = {
   parseSheetRows(rows, weekIdx) {
     const results = [];
 
-    // Mapeo de columnas por día (detectado dinámicamente o por posición predeterminada)
+    // Mapeo de columnas oficiales según el diseño exacto:
+    // Col B (1): Bloque Lunes-Jueves
+    // Col C (2): Lunes Docente, Col D (3): Lunes Curso
+    // Col E (4): Martes Docente, Col F (5): Martes Curso
+    // Col G (6): Miércoles Docente, Col H (7): Miércoles Curso
+    // Col I (8): Jueves Docente, Col J (9): Jueves Curso
+    // Col K (10): Bloque Viernes
+    // Col L (11): Viernes Docente, Col M (12): Viernes Curso
     let colMap = {
       mon: { doc: 2, cur: 3 },
       tue: { doc: 4, cur: 5 },
       wed: { doc: 6, cur: 7 },
       thu: { doc: 8, cur: 9 },
-      fri: { doc: 11, cur: 12 }
+      fri: { doc: 11, cur: 12, slotCol: 10 }
     };
 
-    // Escanear filas en busca del encabezado de días para ajustar índices
-    rows.forEach((row, rIdx) => {
-      if (!Array.isArray(row)) return;
+    rows.forEach((row) => {
+      if (!Array.isArray(row) || row.length === 0) return;
 
-      const rowText = row.join(' ').toUpperCase();
-      if (rowText.includes('LUNES') && rowText.includes('MARTES')) {
-        // Encontramos cabecera de días
-        row.forEach((cell, cIdx) => {
-          const str = String(cell || '').toUpperCase().trim();
-          if (str.includes('LUNES')) colMap.mon.doc = cIdx;
-          if (str.includes('MARTES')) colMap.tue.doc = cIdx;
-          if (str.includes('MIÉRCOLES') || str.includes('MIERCOLES')) colMap.wed.doc = cIdx;
-          if (str.includes('JUEVES')) colMap.thu.doc = cIdx;
-          if (str.includes('VIERNES')) colMap.fri.doc = cIdx;
-        });
-        colMap.mon.cur = colMap.mon.doc + 1;
-        colMap.tue.cur = colMap.tue.doc + 1;
-        colMap.wed.cur = colMap.wed.doc + 1;
-        colMap.thu.cur = colMap.thu.doc + 1;
-        colMap.fri.cur = colMap.fri.doc + 1;
-      }
+      // Buscar si la fila define un bloque horario en Col B (índice 1)
+      const slotMonThu = this.normalizeSlot(row[1]);
+      const slotFri = this.normalizeSlot(row[10]) || slotMonThu;
 
-      // Buscar celda que contenga un bloque horario
-      let foundSlot = null;
-      for (const cell of row) {
-        if (!cell) continue;
-        const normalized = this.normalizeSlot(String(cell));
-        if (normalized) {
-          foundSlot = normalized;
-          break;
-        }
-      }
+      if (!slotMonThu && !slotFri) return;
 
-      if (foundSlot) {
-        const days = ['mon', 'tue', 'wed', 'thu', 'fri'];
-        days.forEach(day => {
-          const docCol = colMap[day]?.doc;
-          const curCol = colMap[day]?.cur;
+      // 1. Procesar Lunes a Jueves
+      if (slotMonThu) {
+        ['mon', 'tue', 'wed', 'thu'].forEach(day => {
+          const docCol = colMap[day].doc;
+          const curCol = colMap[day].cur;
+          const docente = row[docCol] ? String(row[docCol]).trim() : '';
+          const curso = row[curCol] ? String(row[curCol]).trim() : '';
 
-          const docente = (row[docCol] !== undefined) ? String(row[docCol]).trim() : '';
-          const curso = (row[curCol] !== undefined) ? String(row[curCol]).trim() : '';
-
-          // Si hay docente o curso (o ambos)
           if (docente || curso) {
-            // Descartar si coincide con nombres de cabecera como 'DOCENTE' o 'CURSO'
             if (docente.toUpperCase() === 'DOCENTE' && curso.toUpperCase() === 'CURSO') return;
 
             const isBlocked = docente.toUpperCase().includes('BLOQUEO') || curso.toUpperCase().includes('BLOQUEO');
@@ -364,7 +505,7 @@ const ExcelExport = {
             results.push({
               weekIdx,
               day,
-              slot: foundSlot,
+              slot: slotMonThu,
               docente,
               curso,
               nota: isBlocked ? 'Cargado desde planilla Excel' : '',
@@ -373,19 +514,51 @@ const ExcelExport = {
           }
         });
       }
+
+      // 2. Procesar Viernes
+      if (slotFri) {
+        const docCol = colMap.fri.doc;
+        const curCol = colMap.fri.cur;
+        const docente = row[docCol] ? String(row[docCol]).trim() : '';
+        const curso = row[curCol] ? String(row[curCol]).trim() : '';
+
+        if (docente || curso) {
+          if (docente.toUpperCase() === 'DOCENTE' && curso.toUpperCase() === 'CURSO') return;
+
+          const isBlocked = docente.toUpperCase().includes('BLOQUEO') || curso.toUpperCase().includes('BLOQUEO');
+
+          results.push({
+            weekIdx,
+            day: 'fri',
+            slot: slotFri,
+            docente,
+            curso,
+            nota: isBlocked ? 'Cargado desde planilla Excel' : '',
+            isBlocked
+          });
+        }
+      }
     });
 
     return results;
   },
 
-  normalizeSlot(text) {
-    if (!text) return null;
-    const clean = text.replace(/–/g, '-').replace(/\s+/g, ' ').trim();
-    for (const slot of this.STANDARD_SLOTS) {
-      if (clean.includes(slot) || slot.includes(clean)) {
-        return slot;
-      }
-    }
+  normalizeSlot(val) {
+    if (!val) return null;
+    const clean = String(val).replace(/–/g, '-').replace(/\s+/g, ' ').trim();
+
+    // Mapeo flexible
+    if (clean.includes('08:00') && clean.includes('08:45')) return '08:00 - 08:45';
+    if (clean.includes('08:45') && clean.includes('09:30')) return '08:45 - 09:30';
+    if (clean.includes('09:30') && clean.includes('10:15')) return '09:30 - 10:15';
+    if (clean.includes('10:30') && clean.includes('11:15')) return '10:30 - 11:15';
+    if (clean.includes('11:15') && clean.includes('12:00')) return '11:15 - 12:00';
+    if (clean.includes('11:30') && clean.includes('12:15')) return '11:30 - 12:15';
+    if (clean.includes('12:15') && clean.includes('13:00')) return '12:15 - 13:00';
+    if (clean.includes('13:00') && clean.includes('13:45')) return '13:00 - 13:45';
+    if (clean.includes('14:30') && clean.includes('15:15')) return '14:30 - 15:15';
+    if (clean.includes('15:15') && clean.includes('16:00')) return '15:15 - 16:00';
+
     return null;
   },
 
@@ -409,7 +582,6 @@ const ExcelExport = {
       tbody.innerHTML = '';
       const dayNames = { mon: 'Lunes', tue: 'Martes', wed: 'Miércoles', thu: 'Jueves', fri: 'Viernes' };
 
-      // Mostrar primeros 15 registros en la vista previa
       reservations.slice(0, 15).forEach(r => {
         const tr = document.createElement('tr');
         tr.style.borderBottom = '1px solid var(--border-light)';
@@ -473,11 +645,9 @@ const ExcelExport = {
       this.closeImportModal();
       showToast(res.message || 'Planilla importada exitosamente.');
 
-      // Si el mes importado es el actualmente visible en el calendario, recargarlo
       if (Calendar.currentYearMonth === targetYearMonth) {
         await Calendar.loadMonth(targetYearMonth);
       } else {
-        // Cambiar el selector al mes importado y cargarlo
         const calMonth = document.getElementById('month-select');
         const calYear = document.getElementById('year-select');
         if (calMonth) calMonth.value = month;
