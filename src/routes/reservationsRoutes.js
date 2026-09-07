@@ -24,4 +24,7 @@ router.delete('/', reservationsController.deleteReserva);
 // Importación masiva desde planilla Excel (Exclusivo Administrador)
 router.post('/batch-import', requireAdmin, reservationsController.batchImportReservas);
 
+// Exportar planilla Excel con diseño ejecutivo oficial
+router.get('/export-excel', reservationsController.exportReservasExcel);
+
 module.exports = router;

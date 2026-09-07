@@ -14,8 +14,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
     rel="stylesheet" />
 
-  <!-- Librería SheetJS para Exportación a Excel -->
+  <!-- Librería SheetJS para Importación de Excel -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Librería ExcelJS para Generación y Estilizado Ejecutivo de Excel con Logo y Colores Institucionales -->
+  <script src="/js/vendor/exceljs.min.js"></script>
+  <script>
+    if (typeof ExcelJS === 'undefined') {
+      document.write('<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"><\/script>');
+    }
+  </script>
 
   <!-- Configuración PWA (Progressive Web App) -->
   <link rel="manifest" href="/manifest.json" />

@@ -110,9 +110,10 @@ const ExcelExport = {
   },
 
   // ═══════════════════════════════════════════════════════════════════
-  // CONSTRUCCIÓN DEL FORMATO INSTITUCIONAL OFICIAL (HLL)
+  // CONSTRUCCIÓN DEL FORMATO INSTITUCIONAL OFICIAL CON EXCELJS
+  // Logo, colores institucionales, anchos holgados y alturas ejecutivas
   // ═══════════════════════════════════════════════════════════════════
-  buildOfficialSheetData(week, yearMonth) {
+  async buildStyledExcelSheet(workbook, week, yearMonth, weekIdx, logoBuffer) {
     const [year, month] = (yearMonth || Calendar.currentYearMonth || '2026-09').split('-');
     const monthName = this.MONTH_NAMES[month] || 'SEPTIEMBRE';
 
@@ -127,227 +128,515 @@ const ExcelExport = {
     const thu = res.thu || {};
     const fri = res.fri || {};
 
-    const wsData = [
-      [], // Fila 1 (margen superior)
-      ['', `Registro y Uso de Sala de Computación ${year}`], // Fila 2 (B2)
-      [], // Fila 3
-      ['', 'MES DE:', monthName], // Fila 4 (B4: MES DE:, C4:D4: Nombre Mes)
-      ['', 'SEMANA DEL', fromStr, '', 'HASTA EL', toStr], // Fila 5 (B5: SEMANA DEL, C5:D5, E5: HASTA EL, F5:G5)
-      [], // Fila 6
-      // Fila 7: Días de la semana
-      ['', '', 'LUNES', '', 'MARTES', '', 'MIERCOLES', '', 'JUEVES', '', '', 'VIERNES', ''],
-      // Fila 8: Subencabezados DOCENTE / CURSO
-      ['', '', 'DOCENTE', 'CURSO', 'DOCENTE', 'CURSO', 'DOCENTE', 'CURSO', 'DOCENTE', 'CURSO', '', 'DOCENTE', 'CURSO'],
-
-      // Fila 9: Bloque 1
-      ['', '08:00 - 08:45',
-        mon['08:00 - 08:45']?.docente || '', mon['08:00 - 08:45']?.curso || '',
-        tue['08:00 - 08:45']?.docente || '', tue['08:00 - 08:45']?.curso || '',
-        wed['08:00 - 08:45']?.docente || '', wed['08:00 - 08:45']?.curso || '',
-        thu['08:00 - 08:45']?.docente || '', thu['08:00 - 08:45']?.curso || '',
-        '08:00 - 08:45',
-        fri['08:00 - 08:45']?.docente || '', fri['08:00 - 08:45']?.curso || ''
-      ],
-      // Fila 10: Bloque 2
-      ['', '08:45 - 09:30',
-        mon['08:45 - 09:30']?.docente || '', mon['08:45 - 09:30']?.curso || '',
-        tue['08:45 - 09:30']?.docente || '', tue['08:45 - 09:30']?.curso || '',
-        wed['08:45 - 09:30']?.docente || '', wed['08:45 - 09:30']?.curso || '',
-        thu['08:45 - 09:30']?.docente || '', thu['08:45 - 09:30']?.curso || '',
-        '08:45 - 09:30',
-        fri['08:45 - 09:30']?.docente || '', fri['08:45 - 09:30']?.curso || ''
-      ],
-      // Fila 11: Bloque 3
-      ['', '09:30 - 10:15',
-        mon['09:30 - 10:15']?.docente || '', mon['09:30 - 10:15']?.curso || '',
-        tue['09:30 - 10:15']?.docente || '', tue['09:30 - 10:15']?.curso || '',
-        wed['09:30 - 10:15']?.docente || '', wed['09:30 - 10:15']?.curso || '',
-        thu['09:30 - 10:15']?.docente || '', thu['09:30 - 10:15']?.curso || '',
-        '',
-        fri['09:30 - 10:15']?.docente || '', fri['09:30 - 10:15']?.curso || ''
-      ],
-
-      // Fila 12: Recreo 1 (Espacio en blanco)
-      [],
-
-      // Fila 13: Bloque 4
-      ['', '10:30 - 11:15',
-        mon['10:30 - 11:15']?.docente || '', mon['10:30 - 11:15']?.curso || '',
-        tue['10:30 - 11:15']?.docente || '', tue['10:30 - 11:15']?.curso || '',
-        wed['10:30 - 11:15']?.docente || '', wed['10:30 - 11:15']?.curso || '',
-        thu['10:30 - 11:15']?.docente || '', thu['10:30 - 11:15']?.curso || '',
-        '',
-        '', ''
-      ],
-      // Fila 14: Bloque 5 (En viernes corresponde a 10:30 - 11:15)
-      ['', '11:15 - 12:00',
-        mon['11:15 - 12:00']?.docente || '', mon['11:15 - 12:00']?.curso || '',
-        tue['11:15 - 12:00']?.docente || '', tue['11:15 - 12:00']?.curso || '',
-        wed['11:15 - 12:00']?.docente || '', wed['11:15 - 12:00']?.curso || '',
-        thu['11:15 - 12:00']?.docente || '', thu['11:15 - 12:00']?.curso || '',
-        '10:30 - 11:15',
-        fri['10:30 - 11:15']?.docente || '', fri['10:30 - 11:15']?.curso || ''
-      ],
-
-      // Fila 15: Recreo 2 (Espacio en blanco)
-      [],
-
-      // Fila 16: Bloque 6 (En viernes 11:30 - 12:15 o 11:15 - 12:00)
-      ['', '12:15 - 13:00',
-        mon['12:15 - 13:00']?.docente || '', mon['12:15 - 13:00']?.curso || '',
-        tue['12:15 - 13:00']?.docente || '', tue['12:15 - 13:00']?.curso || '',
-        wed['12:15 - 13:00']?.docente || '', wed['12:15 - 13:00']?.curso || '',
-        thu['12:15 - 13:00']?.docente || '', thu['12:15 - 13:00']?.curso || '',
-        '11:30 - 12:15',
-        (fri['11:30 - 12:15'] || fri['11:15 - 12:00'])?.docente || '', (fri['11:30 - 12:15'] || fri['11:15 - 12:00'])?.curso || ''
-      ],
-      // Fila 17: Bloque 7 (En viernes 12:15 - 13:00)
-      ['', '13:00 - 13:45',
-        mon['13:00 - 13:45']?.docente || '', mon['13:00 - 13:45']?.curso || '',
-        tue['13:00 - 13:45']?.docente || '', tue['13:00 - 13:45']?.curso || '',
-        wed['13:00 - 13:45']?.docente || '', wed['13:00 - 13:45']?.curso || '',
-        thu['13:00 - 13:45']?.docente || '', thu['13:00 - 13:45']?.curso || '',
-        '12:15 - 13:00',
-        (fri['12:15 - 13:00'] || fri['13:00 - 13:45'])?.docente || '', (fri['12:15 - 13:00'] || fri['13:00 - 13:45'])?.curso || ''
-      ],
-
-      // Fila 18: Almuerzo (Espacio en blanco)
-      [],
-
-      // Fila 19: Bloque 8
-      ['', '14:30 - 15:15',
-        mon['14:30 - 15:15']?.docente || '', mon['14:30 - 15:15']?.curso || '',
-        tue['14:30 - 15:15']?.docente || '', tue['14:30 - 15:15']?.curso || '',
-        wed['14:30 - 15:15']?.docente || '', wed['14:30 - 15:15']?.curso || '',
-        thu['14:30 - 15:15']?.docente || '', thu['14:30 - 15:15']?.curso || '',
-        '',
-        '', ''
-      ],
-      // Fila 20: Bloque 9
-      ['', '15:15 - 16:00',
-        mon['15:15 - 16:00']?.docente || '', mon['15:15 - 16:00']?.curso || '',
-        tue['15:15 - 16:00']?.docente || '', tue['15:15 - 16:00']?.curso || '',
-        wed['15:15 - 16:00']?.docente || '', wed['15:15 - 16:00']?.curso || '',
-        thu['15:15 - 16:00']?.docente || '', thu['15:15 - 16:00']?.curso || '',
-        '',
-        '', ''
-      ],
-
-      // Fila 21: Espacio
-      [],
-      // Fila 22: NOTA institucional
-      ['', 'NOTA:', 'Los bloques sombreados corresponden a horarios donde no está disponible la sala.']
-    ];
-
-    return wsData;
-  },
-
-  getSheetMerges() {
-    return [
-      // B2:H2 (Título principal)
-      { s: { r: 1, c: 1 }, e: { r: 1, c: 7 } },
-      // C4:D4 (Nombre de Mes)
-      { s: { r: 3, c: 2 }, e: { r: 3, c: 3 } },
-      // C5:D5 (Fecha Desde)
-      { s: { r: 4, c: 2 }, e: { r: 4, c: 3 } },
-      // F5:G5 (Fecha Hasta)
-      { s: { r: 4, c: 5 }, e: { r: 4, c: 6 } },
-      // C7:D7 (LUNES)
-      { s: { r: 6, c: 2 }, e: { r: 6, c: 3 } },
-      // E7:F7 (MARTES)
-      { s: { r: 6, c: 4 }, e: { r: 6, c: 5 } },
-      // G7:H7 (MIERCOLES)
-      { s: { r: 6, c: 6 }, e: { r: 6, c: 7 } },
-      // I7:J7 (JUEVES)
-      { s: { r: 6, c: 8 }, e: { r: 6, c: 9 } },
-      // L7:M7 (VIERNES)
-      { s: { r: 6, c: 11 }, e: { r: 6, c: 12 } },
-      // C22:J22 (Nota informativa)
-      { s: { r: 21, c: 2 }, e: { r: 21, c: 9 } }
-    ];
-  },
-
-  getSheetCols() {
-    return [
-      { wch: 3 },   // A
-      { wch: 14 },  // B (Bloque Horario Lunes-Jueves)
-      { wch: 18 },  // C (Lunes Docente)
-      { wch: 15 },  // D (Lunes Curso)
-      { wch: 18 },  // E (Martes Docente)
-      { wch: 15 },  // F (Martes Curso)
-      { wch: 18 },  // G (Miércoles Docente)
-      { wch: 15 },  // H (Miércoles Curso)
-      { wch: 18 },  // I (Jueves Docente)
-      { wch: 15 },  // J (Jueves Curso)
-      { wch: 14 },  // K (Bloque Horario Viernes)
-      { wch: 18 },  // L (Viernes Docente)
-      { wch: 15 }   // M (Viernes Curso)
-    ];
-  },
-
-  // ═══════════════════════════════════════════════════════════════════
-  // EXPORTACIÓN DE PLANILLAS DEL MES ACTUAL
-  // ═══════════════════════════════════════════════════════════════════
-  exportCurrentMonth() {
-    if (typeof XLSX === 'undefined') {
-      alert('La librería SheetJS (XLSX) no está cargada.');
-      return;
-    }
-
-    const wb = XLSX.utils.book_new();
-    const ym = Calendar.currentYearMonth || '2026-09';
-    const [year, month] = ym.split('-');
-    const monthName = this.MONTH_NAMES[month] || 'SEPTIEMBRE';
-
-    Calendar.activeWeeks.forEach((w, wIdx) => {
-      const wsData = this.buildOfficialSheetData(w, ym);
-      const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-      ws['!merges'] = this.getSheetMerges();
-      ws['!cols'] = this.getSheetCols();
-
-      XLSX.utils.book_append_sheet(wb, ws, `SEMANA_0${wIdx + 1}`);
+    const sheetName = `SEMANA_0${weekIdx + 1}`;
+    const ws = workbook.addWorksheet(sheetName, {
+      views: [{ showGridLines: true }]
     });
 
-    const fileName = `${month}_${monthName}_SALA_DE_COMPUTACION_${year}.xlsx`;
-    XLSX.writeFile(wb, fileName);
-    showToast(`📥 Planilla exportada: ${fileName}`);
+    // Ancho de columnas espacioso y bien distribuido (para no verse apretado)
+    ws.columns = [
+      { key: 'colA', width: 4 },    // Margen izquierdo
+      { key: 'colB', width: 17 },   // Horario Lunes-Jueves
+      { key: 'colC', width: 25 },   // Lunes Docente
+      { key: 'colD', width: 19 },   // Lunes Curso
+      { key: 'colE', width: 25 },   // Martes Docente
+      { key: 'colF', width: 19 },   // Martes Curso
+      { key: 'colG', width: 25 },   // Miércoles Docente
+      { key: 'colH', width: 19 },   // Miércoles Curso
+      { key: 'colI', width: 25 },   // Jueves Docente
+      { key: 'colJ', width: 19 },   // Jueves Curso
+      { key: 'colK', width: 17 },   // Horario Viernes
+      { key: 'colL', width: 25 },   // Viernes Docente
+      { key: 'colM', width: 19 }    // Viernes Curso
+    ];
+
+    // Estilos de fuentes institucionales
+    const fontTitle = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF0B2545' } };
+    const fontHeaderDays = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+    const fontSubheader = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FFFFFFFF' } };
+    const fontMetaLabel = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF0B2545' } };
+    const fontMetaValue = { name: 'Calibri', size: 10.5, color: { argb: 'FF1E293B' } };
+    const fontSlotBadge = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF0B2545' } };
+    const fontDocente = { name: 'Calibri', size: 10.5, color: { argb: 'FF0F172A' } };
+    const fontCurso = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF1E293B' } };
+
+    // Estilos de bordes y rellenos
+    const borderThin = {
+      top: { style: 'thin', color: { argb: 'FF94A3B8' } },
+      bottom: { style: 'thin', color: { argb: 'FF94A3B8' } },
+      left: { style: 'thin', color: { argb: 'FF94A3B8' } },
+      right: { style: 'thin', color: { argb: 'FF94A3B8' } }
+    };
+
+    const fillNavy = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0B2545' } };
+    const fillNavySub = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF134074' } };
+    const fillMetaLabel = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+    const fillMetaVal = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+    const fillSlot = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+    const fillBlocked = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCBD5E1' } };
+    const fillWhite = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+
+    // Fila 1: Margen superior
+    ws.getRow(1).height = 10;
+
+    // Fila 2: Cabecera con Logo en B2 y Título en C2:J2
+    ws.getRow(2).height = 44;
+    ws.mergeCells('C2:J2');
+    const titleCell = ws.getCell('C2');
+    titleCell.value = `Registro y Uso de Sala de Computación ${year}`;
+    titleCell.font = fontTitle;
+    titleCell.alignment = { vertical: 'middle', horizontal: 'left' };
+
+    // Incrustar Logo oficial si está disponible
+    if (logoBuffer) {
+      try {
+        const imageId = workbook.addImage({
+          buffer: logoBuffer,
+          extension: 'png'
+        });
+        ws.addImage(imageId, {
+          tl: { col: 1.15, row: 1.15 },
+          ext: { width: 44, height: 44 },
+          editAs: 'oneCell'
+        });
+      } catch (err) {
+        console.warn('No fue posible incrustar el logo en Excel:', err);
+      }
+    }
+
+    // Fila 3: Espaciado
+    ws.getRow(3).height = 10;
+
+    // Fila 4: MES DE: [MES]
+    ws.getRow(4).height = 24;
+    const b4 = ws.getCell('B4');
+    b4.value = 'MES DE:';
+    b4.font = fontMetaLabel;
+    b4.fill = fillMetaLabel;
+    b4.border = borderThin;
+    b4.alignment = { vertical: 'middle', horizontal: 'center' };
+
+    ws.mergeCells('C4:D4');
+    const c4 = ws.getCell('C4');
+    c4.value = monthName;
+    c4.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF0B2545' } };
+    c4.fill = fillMetaVal;
+    c4.alignment = { vertical: 'middle', horizontal: 'center' };
+    ['C4', 'D4'].forEach(c => ws.getCell(c).border = borderThin);
+
+    // Fila 5: SEMANA DEL [D/M/YYYY] HASTA EL [D/M/YYYY]
+    ws.getRow(5).height = 24;
+    const b5 = ws.getCell('B5');
+    b5.value = 'SEMANA DEL';
+    b5.font = fontMetaLabel;
+    b5.fill = fillMetaLabel;
+    b5.border = borderThin;
+    b5.alignment = { vertical: 'middle', horizontal: 'center' };
+
+    ws.mergeCells('C5:D5');
+    const c5 = ws.getCell('C5');
+    c5.value = fromStr;
+    c5.font = fontMetaValue;
+    c5.fill = fillMetaVal;
+    c5.alignment = { vertical: 'middle', horizontal: 'center' };
+    ['C5', 'D5'].forEach(c => ws.getCell(c).border = borderThin);
+
+    const e5 = ws.getCell('E5');
+    e5.value = 'HASTA EL';
+    e5.font = fontMetaLabel;
+    e5.fill = fillMetaLabel;
+    e5.border = borderThin;
+    e5.alignment = { vertical: 'middle', horizontal: 'center' };
+
+    ws.mergeCells('F5:G5');
+    const f5 = ws.getCell('F5');
+    f5.value = toStr;
+    f5.font = fontMetaValue;
+    f5.fill = fillMetaVal;
+    f5.alignment = { vertical: 'middle', horizontal: 'center' };
+    ['F5', 'G5'].forEach(c => ws.getCell(c).border = borderThin);
+
+    // Fila 6: Espaciado antes de la tabla
+    ws.getRow(6).height = 12;
+
+    // Fila 7: Días de la semana (Azul Marino HLL)
+    ws.getRow(7).height = 28;
+    const days = [
+      { s: 'C', e: 'D', name: 'LUNES' },
+      { s: 'E', e: 'F', name: 'MARTES' },
+      { s: 'G', e: 'H', name: 'MIERCOLES' },
+      { s: 'I', e: 'J', name: 'JUEVES' },
+      { s: 'L', e: 'M', name: 'VIERNES' }
+    ];
+    days.forEach(d => {
+      ws.mergeCells(`${d.s}7:${d.e}7`);
+      const cell = ws.getCell(`${d.s}7`);
+      cell.value = d.name;
+      cell.font = fontHeaderDays;
+      cell.fill = fillNavy;
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      ws.getCell(`${d.s}7`).border = borderThin;
+      ws.getCell(`${d.e}7`).border = borderThin;
+    });
+
+    // Fila 8: Subencabezados DOCENTE / CURSO
+    ws.getRow(8).height = 22;
+    ['C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'L', 'M'].forEach((col, idx) => {
+      const cell = ws.getCell(`${col}8`);
+      cell.value = (idx % 2 === 0) ? 'DOCENTE' : 'CURSO';
+      cell.font = fontSubheader;
+      cell.fill = fillNavySub;
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.border = borderThin;
+    });
+
+    // Definición de filas, bloques y celdas institucionales no disponibles
+    const rowsDef = [
+      {
+        r: 9, slotMain: '08:00 - 08:45', slotFri: '08:00 - 08:45',
+        data: {
+          C: mon['08:00 - 08:45']?.docente || '', D: mon['08:00 - 08:45']?.curso || '',
+          E: tue['08:00 - 08:45']?.docente || '', F: tue['08:00 - 08:45']?.curso || '',
+          G: wed['08:00 - 08:45']?.docente || '', H: wed['08:00 - 08:45']?.curso || '',
+          I: thu['08:00 - 08:45']?.docente || '', J: thu['08:00 - 08:45']?.curso || '',
+          L: fri['08:00 - 08:45']?.docente || '', M: fri['08:00 - 08:45']?.curso || ''
+        },
+        defaultBlocked: ['C', 'D', 'L', 'M']
+      },
+      {
+        r: 10, slotMain: '08:45 - 09:30', slotFri: '08:45 - 09:30',
+        data: {
+          C: mon['08:45 - 09:30']?.docente || '', D: mon['08:45 - 09:30']?.curso || '',
+          E: tue['08:45 - 09:30']?.docente || '', F: tue['08:45 - 09:30']?.curso || '',
+          G: wed['08:45 - 09:30']?.docente || '', H: wed['08:45 - 09:30']?.curso || '',
+          I: thu['08:45 - 09:30']?.docente || '', J: thu['08:45 - 09:30']?.curso || '',
+          L: fri['08:45 - 09:30']?.docente || '', M: fri['08:45 - 09:30']?.curso || ''
+        },
+        defaultBlocked: ['L', 'M']
+      },
+      {
+        r: 11, slotMain: '09:30 - 10:15', slotFri: '',
+        data: {
+          C: mon['09:30 - 10:15']?.docente || '', D: mon['09:30 - 10:15']?.curso || '',
+          E: tue['09:30 - 10:15']?.docente || '', F: tue['09:30 - 10:15']?.curso || '',
+          G: wed['09:30 - 10:15']?.docente || '', H: wed['09:30 - 10:15']?.curso || '',
+          I: thu['09:30 - 10:15']?.docente || '', J: thu['09:30 - 10:15']?.curso || '',
+          L: fri['09:30 - 10:15']?.docente || '', M: fri['09:30 - 10:15']?.curso || ''
+        },
+        defaultBlocked: ['E', 'F']
+      },
+      { r: 12, isBreak: true },
+      {
+        r: 13, slotMain: '10:30 - 11:15', slotFri: '',
+        data: {
+          C: mon['10:30 - 11:15']?.docente || '', D: mon['10:30 - 11:15']?.curso || '',
+          E: tue['10:30 - 11:15']?.docente || '', F: tue['10:30 - 11:15']?.curso || '',
+          G: wed['10:30 - 11:15']?.docente || '', H: wed['10:30 - 11:15']?.curso || '',
+          I: thu['10:30 - 11:15']?.docente || '', J: thu['10:30 - 11:15']?.curso || '',
+          L: '', M: ''
+        },
+        defaultBlocked: []
+      },
+      {
+        r: 14, slotMain: '11:15 - 12:00', slotFri: '10:30 - 11:15',
+        data: {
+          C: mon['11:15 - 12:00']?.docente || '', D: mon['11:15 - 12:00']?.curso || '',
+          E: tue['11:15 - 12:00']?.docente || '', F: tue['11:15 - 12:00']?.curso || '',
+          G: wed['11:15 - 12:00']?.docente || '', H: wed['11:15 - 12:00']?.curso || '',
+          I: thu['11:15 - 12:00']?.docente || '', J: thu['11:15 - 12:00']?.curso || '',
+          L: fri['10:30 - 11:15']?.docente || '', M: fri['10:30 - 11:15']?.curso || ''
+        },
+        defaultBlocked: []
+      },
+      { r: 15, isBreak: true },
+      {
+        r: 16, slotMain: '12:15 - 13:00', slotFri: '11:30 - 12:15',
+        data: {
+          C: mon['12:15 - 13:00']?.docente || '', D: mon['12:15 - 13:00']?.curso || '',
+          E: tue['12:15 - 13:00']?.docente || '', F: tue['12:15 - 13:00']?.curso || '',
+          G: wed['12:15 - 13:00']?.docente || '', H: wed['12:15 - 13:00']?.curso || '',
+          I: thu['12:15 - 13:00']?.docente || '', J: thu['12:15 - 13:00']?.curso || '',
+          L: (fri['11:30 - 12:15'] || fri['11:15 - 12:00'])?.docente || '', M: (fri['11:30 - 12:15'] || fri['11:15 - 12:00'])?.curso || ''
+        },
+        defaultBlocked: ['I', 'J']
+      },
+      {
+        r: 17, slotMain: '13:00 - 13:45', slotFri: '12:15 - 13:00',
+        data: {
+          C: mon['13:00 - 13:45']?.docente || '', D: mon['13:00 - 13:45']?.curso || '',
+          E: tue['13:00 - 13:45']?.docente || '', F: tue['13:00 - 13:45']?.curso || '',
+          G: wed['13:00 - 13:45']?.docente || '', H: wed['13:00 - 13:45']?.curso || '',
+          I: thu['13:00 - 13:45']?.docente || '', J: thu['13:00 - 13:45']?.curso || '',
+          L: (fri['12:15 - 13:00'] || fri['13:00 - 13:45'])?.docente || '', M: (fri['12:15 - 13:00'] || fri['13:00 - 13:45'])?.curso || ''
+        },
+        defaultBlocked: ['I', 'J', 'L', 'M']
+      },
+      { r: 18, isBreak: true },
+      {
+        r: 19, slotMain: '14:30 - 15:15', slotFri: '',
+        data: {
+          C: mon['14:30 - 15:15']?.docente || '', D: mon['14:30 - 15:15']?.curso || '',
+          E: tue['14:30 - 15:15']?.docente || '', F: tue['14:30 - 15:15']?.curso || '',
+          G: wed['14:30 - 15:15']?.docente || '', H: wed['14:30 - 15:15']?.curso || '',
+          I: thu['14:30 - 15:15']?.docente || '', J: thu['14:30 - 15:15']?.curso || '',
+          L: '', M: ''
+        },
+        defaultBlocked: []
+      },
+      {
+        r: 20, slotMain: '15:15 - 16:00', slotFri: '',
+        data: {
+          C: mon['15:15 - 16:00']?.docente || '', D: mon['15:15 - 16:00']?.curso || '',
+          E: tue['15:15 - 16:00']?.docente || '', F: tue['15:15 - 16:00']?.curso || '',
+          G: wed['15:15 - 16:00']?.docente || '', H: wed['15:15 - 16:00']?.curso || '',
+          I: thu['15:15 - 16:00']?.docente || '', J: thu['15:15 - 16:00']?.curso || '',
+          L: '', M: ''
+        },
+        defaultBlocked: []
+      },
+      { r: 21, isBreak: true }
+    ];
+
+    rowsDef.forEach(item => {
+      const row = ws.getRow(item.r);
+      if (item.isBreak) {
+        row.height = 10;
+        ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M'].forEach(c => {
+          ws.getCell(`${c}${item.r}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+        });
+        return;
+      }
+
+      // Altura amplia y espaciosa (28pt) para evitar el aspecto apretado
+      row.height = 28;
+
+      // Col B: Horario Lunes a Jueves
+      const bCell = ws.getCell(`B${item.r}`);
+      bCell.value = item.slotMain;
+      bCell.font = fontSlotBadge;
+      bCell.fill = fillSlot;
+      bCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      bCell.border = borderThin;
+
+      // Celdas Lunes a Jueves
+      const dayCols = [
+        { d: 'C', c: 'D' }, // Lunes
+        { d: 'E', c: 'F' }, // Martes
+        { d: 'G', c: 'H' }, // Miércoles
+        { d: 'I', c: 'J' }, // Jueves
+      ];
+
+      dayCols.forEach(pair => {
+        const docVal = item.data[pair.d] || '';
+        const curVal = item.data[pair.c] || '';
+        const isBlocked = item.defaultBlocked.includes(pair.d) ||
+                          docVal.toUpperCase().includes('BLOQUEO') ||
+                          curVal.toUpperCase().includes('BLOQUEO');
+
+        const dCell = ws.getCell(`${pair.d}${item.r}`);
+        const cCell = ws.getCell(`${pair.c}${item.r}`);
+
+        dCell.value = isBlocked ? (docVal.includes('BLOQUEO') ? docVal : '') : docVal;
+        cCell.value = isBlocked ? (curVal.includes('BLOQUEO') ? curVal : '') : curVal;
+
+        dCell.font = fontDocente;
+        cCell.font = fontCurso;
+
+        dCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        cCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+
+        dCell.border = borderThin;
+        cCell.border = borderThin;
+
+        if (isBlocked) {
+          dCell.fill = fillBlocked;
+          cCell.fill = fillBlocked;
+        } else {
+          const curUpper = curVal.toUpperCase();
+          let cellFill = fillWhite;
+          if (curUpper.includes('EDUTEN')) {
+            cellFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } }; // celeste suave institucional
+          } else if (curUpper.includes('BEEVERSO')) {
+            cellFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } }; // menta suave institucional
+          } else if (curUpper.includes('MEDIO')) {
+            cellFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF9C3' } }; // amarillo suave institucional
+          }
+          dCell.fill = cellFill;
+          cCell.fill = cellFill;
+        }
+      });
+
+      // Horario y Celdas de Viernes
+      if (item.slotFri) {
+        const kCell = ws.getCell(`K${item.r}`);
+        kCell.value = item.slotFri;
+        kCell.font = fontSlotBadge;
+        kCell.fill = fillSlot;
+        kCell.alignment = { vertical: 'middle', horizontal: 'center' };
+        kCell.border = borderThin;
+
+        const docVal = item.data.L || '';
+        const curVal = item.data.M || '';
+        const isBlocked = item.defaultBlocked.includes('L') ||
+                          docVal.toUpperCase().includes('BLOQUEO') ||
+                          curVal.toUpperCase().includes('BLOQUEO');
+
+        const lCell = ws.getCell(`L${item.r}`);
+        const mCell = ws.getCell(`M${item.r}`);
+
+        lCell.value = isBlocked ? (docVal.includes('BLOQUEO') ? docVal : '') : docVal;
+        mCell.value = isBlocked ? (curVal.includes('BLOQUEO') ? curVal : '') : curVal;
+
+        lCell.font = fontDocente;
+        mCell.font = fontCurso;
+
+        lCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        mCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+
+        lCell.border = borderThin;
+        mCell.border = borderThin;
+
+        if (isBlocked) {
+          lCell.fill = fillBlocked;
+          mCell.fill = fillBlocked;
+        } else {
+          const curUpper = curVal.toUpperCase();
+          let cellFill = fillWhite;
+          if (curUpper.includes('EDUTEN')) {
+            cellFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } };
+          } else if (curUpper.includes('BEEVERSO')) {
+            cellFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
+          } else if (curUpper.includes('MEDIO')) {
+            cellFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF9C3' } };
+          }
+          lCell.fill = cellFill;
+          mCell.fill = cellFill;
+        }
+      }
+    });
+
+    // Fila 22: NOTA institucional
+    ws.getRow(22).height = 24;
+    const noteTag = ws.getCell('B22');
+    noteTag.value = 'NOTA:';
+    noteTag.font = fontMetaLabel;
+    noteTag.alignment = { vertical: 'middle', horizontal: 'right' };
+
+    ws.mergeCells('C22:J22');
+    const noteText = ws.getCell('C22');
+    noteText.value = 'Los bloques sombreados corresponden a horarios donde no está disponible la sala.';
+    noteText.font = { name: 'Calibri', size: 9.5, italic: true, color: { argb: 'FF64748B' } };
+    noteText.alignment = { vertical: 'middle', horizontal: 'left' };
   },
 
   // ═══════════════════════════════════════════════════════════════════
-  // DESCARGA DE PLANTILLA MODELO OFICIAL (VACÍA PARA LLENAR)
+  // EXPORTACIÓN DE PLANILLAS DEL MES ACTUAL (DISEÑO PROFESIONAL EXCELJS)
   // ═══════════════════════════════════════════════════════════════════
-  downloadTemplate() {
-    if (typeof XLSX === 'undefined') {
-      alert('La librería SheetJS (XLSX) no está cargada.');
+  async exportCurrentMonth() {
+    if (typeof ExcelJS === 'undefined') {
+      alert('La librería ExcelJS no está cargada.');
       return;
     }
 
-    const wb = XLSX.utils.book_new();
-    const ym = Calendar.currentYearMonth || '2026-09';
-    const [year, month] = ym.split('-');
-    const monthName = this.MONTH_NAMES[month] || 'SEPTIEMBRE';
+    try {
+      showToast('⏳ Generando planilla ejecutiva con diseño oficial...');
+      const ym = Calendar.currentYearMonth || '2026-09';
+      const [year, month] = ym.split('-');
+      const monthName = this.MONTH_NAMES[month] || 'SEPTIEMBRE';
 
-    // Generar 5 semanas modelo con sus rangos estimados
-    for (let wIdx = 0; wIdx < 5; wIdx++) {
-      const sampleWeek = {
-        from: new Date(Number(year), Number(month) - 1, 1 + wIdx * 7),
-        to: new Date(Number(year), Number(month) - 1, 5 + wIdx * 7),
-        reservations: {}
-      };
+      // Obtener logo del colegio
+      let logoBuffer = null;
+      try {
+        const resp = await fetch('/icons/icon-192.png');
+        if (resp.ok) logoBuffer = await resp.arrayBuffer();
+      } catch (e) {
+        console.warn('Logo no disponible:', e);
+      }
 
-      const wsData = this.buildOfficialSheetData(sampleWeek, ym);
-      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'Colegio Santo Domingo Helen Lee Lassen';
+      workbook.created = new Date();
 
-      ws['!merges'] = this.getSheetMerges();
-      ws['!cols'] = this.getSheetCols();
+      for (let wIdx = 0; wIdx < Calendar.activeWeeks.length; wIdx++) {
+        const w = Calendar.activeWeeks[wIdx];
+        await this.buildStyledExcelSheet(workbook, w, ym, wIdx, logoBuffer);
+      }
 
-      XLSX.utils.book_append_sheet(wb, ws, `SEMANA_0${wIdx + 1}`);
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const fileName = `${month}_${monthName}_SALA_DE_COMPUTACION_${year}.xlsx`;
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showToast(`📥 Planilla exportada con éxito: ${fileName}`);
+    } catch (err) {
+      console.error('Error al exportar planilla:', err);
+      showToast('❌ Error al exportar la planilla Excel.', 'error');
+    }
+  },
+
+  // ═══════════════════════════════════════════════════════════════════
+  // DESCARGA DE PLANTILLA MODELO OFICIAL (VACÍA CON ESTILO INSTITUCIONAL)
+  // ═══════════════════════════════════════════════════════════════════
+  async downloadTemplate() {
+    if (typeof ExcelJS === 'undefined') {
+      alert('La librería ExcelJS no está cargada.');
+      return;
     }
 
-    const fileName = `${month}_${monthName}_SALA_DE_COMPUTACION_${year}.xlsx`;
-    XLSX.writeFile(wb, fileName);
-    showToast(`📄 Plantilla oficial descargada: ${fileName}`);
+    try {
+      showToast('⏳ Generando plantilla oficial con diseño institucional...');
+      const ym = Calendar.currentYearMonth || '2026-09';
+      const [year, month] = ym.split('-');
+      const monthName = this.MONTH_NAMES[month] || 'SEPTIEMBRE';
+
+      let logoBuffer = null;
+      try {
+        const resp = await fetch('/icons/icon-192.png');
+        if (resp.ok) logoBuffer = await resp.arrayBuffer();
+      } catch (e) {
+        console.warn('Logo no disponible:', e);
+      }
+
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'Colegio Santo Domingo Helen Lee Lassen';
+      workbook.created = new Date();
+
+      // Generar 5 semanas modelo con sus rangos estimados
+      for (let wIdx = 0; wIdx < 5; wIdx++) {
+        const sampleWeek = {
+          from: new Date(Number(year), Number(month) - 1, 1 + wIdx * 7),
+          to: new Date(Number(year), Number(month) - 1, 5 + wIdx * 7),
+          reservations: {}
+        };
+        await this.buildStyledExcelSheet(workbook, sampleWeek, ym, wIdx, logoBuffer);
+      }
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const fileName = `${month}_${monthName}_SALA_DE_COMPUTACION_${year}.xlsx`;
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showToast(`📄 Plantilla oficial descargada: ${fileName}`);
+    } catch (err) {
+      console.error('Error al descargar plantilla:', err);
+      showToast('❌ Error al generar la plantilla oficial.', 'error');
+    }
   },
 
   // ═══════════════════════════════════════════════════════════════════

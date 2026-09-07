@@ -327,9 +327,473 @@ async function batchImportReservas(req, res) {
   }
 }
 
+/**
+ * Exporta las reservas de un mes a un archivo Excel (.xlsx) con diseño institucional
+ */
+async function exportReservasExcel(req, res) {
+  try {
+    const ExcelJS = require('exceljs');
+    const path = require('path');
+    const fs = require('fs');
+
+    const now = new Date();
+    const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const yearMonth = req.query.month || currentYM;
+    const [year, month] = yearMonth.split('-');
+
+    const MONTH_NAMES = {
+      '01': 'ENERO', '02': 'FEBRERO', '03': 'MARZO', '04': 'ABRIL',
+      '05': 'MAYO', '06': 'JUNIO', '07': 'JULIO', '08': 'AGOSTO',
+      '09': 'SEPTIEMBRE', '10': 'OCTUBRE', '11': 'NOVIEMBRE', '12': 'DICIEMBRE'
+    };
+    const monthName = MONTH_NAMES[month] || 'SEPTIEMBRE';
+
+    // Obtener reservas de Neon DB
+    const pool = db.getPool();
+    const weeksData = [{}, {}, {}, {}, {}];
+
+    if (pool && db.isNeonConnected()) {
+      const result = await pool.query(`
+        SELECT week_idx, day, slot, docente, curso, is_blocked
+        FROM reservas
+        WHERE year_month = $1
+        ORDER BY week_idx ASC, day ASC, slot ASC;
+      `, [yearMonth]);
+
+      result.rows.forEach(r => {
+        const wIdx = r.week_idx || 0;
+        if (!weeksData[wIdx]) weeksData[wIdx] = {};
+        if (!weeksData[wIdx][r.day]) weeksData[wIdx][r.day] = {};
+        weeksData[wIdx][r.day][r.slot] = {
+          docente: r.docente,
+          curso: r.curso,
+          isBlocked: r.is_blocked
+        };
+      });
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Colegio Santo Domingo Helen Lee Lassen';
+    workbook.created = new Date();
+
+    const logoPath = path.join(__dirname, '../../public/icons/icon-192.png');
+    let logoImageId = null;
+    if (fs.existsSync(logoPath)) {
+      logoImageId = workbook.addImage({
+        filename: logoPath,
+        extension: 'png'
+      });
+    }
+
+    const borderThin = {
+      top: { style: 'thin', color: { argb: 'FF94A3B8' } },
+      bottom: { style: 'thin', color: { argb: 'FF94A3B8' } },
+      left: { style: 'thin', color: { argb: 'FF94A3B8' } },
+      right: { style: 'thin', color: { argb: 'FF94A3B8' } }
+    };
+    const fillNavy = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0B2545' } };
+    const fillNavySub = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF134074' } };
+    const fillMetaLabel = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+    const fillMetaVal = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+    const fillSlot = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+    const fillBlocked = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCBD5E1' } };
+    const fillWhite = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+
+    const fontTitle = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF0B2545' } };
+    const fontHeaderDays = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+    const fontSubheader = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FFFFFFFF' } };
+    const fontMetaLabel = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF0B2545' } };
+    const fontMetaValue = { name: 'Calibri', size: 10.5, color: { argb: 'FF1E293B' } };
+    const fontSlotBadge = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF0B2545' } };
+    const fontDocente = { name: 'Calibri', size: 10.5, color: { argb: 'FF0F172A' } };
+    const fontCurso = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF1E293B' } };
+
+    for (let wIdx = 0; wIdx < 5; wIdx++) {
+      const ws = workbook.addWorksheet(`SEMANA_0${wIdx + 1}`, {
+        views: [{ showGridLines: true }]
+      });
+
+      ws.columns = [
+        { key: 'colA', width: 4 },
+        { key: 'colB', width: 17 },
+        { key: 'colC', width: 25 },
+        { key: 'colD', width: 19 },
+        { key: 'colE', width: 25 },
+        { key: 'colF', width: 19 },
+        { key: 'colG', width: 25 },
+        { key: 'colH', width: 19 },
+        { key: 'colI', width: 25 },
+        { key: 'colJ', width: 19 },
+        { key: 'colK', width: 17 },
+        { key: 'colL', width: 25 },
+        { key: 'colM', width: 19 }
+      ];
+
+      // Fila 1
+      ws.getRow(1).height = 10;
+
+      // Fila 2: Título + Logo
+      ws.getRow(2).height = 44;
+      ws.mergeCells('C2:J2');
+      const tCell = ws.getCell('C2');
+      tCell.value = `Registro y Uso de Sala de Computación ${year}`;
+      tCell.font = fontTitle;
+      tCell.alignment = { vertical: 'middle', horizontal: 'left' };
+
+      if (logoImageId !== null) {
+        ws.addImage(logoImageId, {
+          tl: { col: 1.15, row: 1.15 },
+          ext: { width: 44, height: 44 },
+          editAs: 'oneCell'
+        });
+      }
+
+      // Fila 3
+      ws.getRow(3).height = 10;
+
+      // Fila 4: MES DE
+      ws.getRow(4).height = 24;
+      const b4 = ws.getCell('B4');
+      b4.value = 'MES DE:';
+      b4.font = fontMetaLabel;
+      b4.fill = fillMetaLabel;
+      b4.border = borderThin;
+      b4.alignment = { vertical: 'middle', horizontal: 'center' };
+
+      ws.mergeCells('C4:D4');
+      const c4 = ws.getCell('C4');
+      c4.value = monthName;
+      c4.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF0B2545' } };
+      c4.fill = fillMetaVal;
+      c4.alignment = { vertical: 'middle', horizontal: 'center' };
+      ['C4', 'D4'].forEach(c => ws.getCell(c).border = borderThin);
+
+      // Fila 5: Fechas
+      const fromDay = 1 + wIdx * 7;
+      const toDay = Math.min(fromDay + 4, 31);
+      ws.getRow(5).height = 24;
+
+      const b5 = ws.getCell('B5');
+      b5.value = 'SEMANA DEL';
+      b5.font = fontMetaLabel;
+      b5.fill = fillMetaLabel;
+      b5.border = borderThin;
+      b5.alignment = { vertical: 'middle', horizontal: 'center' };
+
+      ws.mergeCells('C5:D5');
+      const c5 = ws.getCell('C5');
+      c5.value = `${fromDay}/${parseInt(month, 10)}/${year}`;
+      c5.font = fontMetaValue;
+      c5.fill = fillMetaVal;
+      c5.alignment = { vertical: 'middle', horizontal: 'center' };
+      ['C5', 'D5'].forEach(c => ws.getCell(c).border = borderThin);
+
+      const e5 = ws.getCell('E5');
+      e5.value = 'HASTA EL';
+      e5.font = fontMetaLabel;
+      e5.fill = fillMetaLabel;
+      e5.border = borderThin;
+      e5.alignment = { vertical: 'middle', horizontal: 'center' };
+
+      ws.mergeCells('F5:G5');
+      const f5 = ws.getCell('F5');
+      f5.value = `${toDay}/${parseInt(month, 10)}/${year}`;
+      f5.font = fontMetaValue;
+      f5.fill = fillMetaVal;
+      f5.alignment = { vertical: 'middle', horizontal: 'center' };
+      ['F5', 'G5'].forEach(c => ws.getCell(c).border = borderThin);
+
+      // Fila 6
+      ws.getRow(6).height = 12;
+
+      // Fila 7: Días
+      ws.getRow(7).height = 28;
+      const days = [
+        { s: 'C', e: 'D', name: 'LUNES' },
+        { s: 'E', e: 'F', name: 'MARTES' },
+        { s: 'G', e: 'H', name: 'MIERCOLES' },
+        { s: 'I', e: 'J', name: 'JUEVES' },
+        { s: 'L', e: 'M', name: 'VIERNES' }
+      ];
+      days.forEach(d => {
+        ws.mergeCells(`${d.s}7:${d.e}7`);
+        const cell = ws.getCell(`${d.s}7`);
+        cell.value = d.name;
+        cell.font = fontHeaderDays;
+        cell.fill = fillNavy;
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        ws.getCell(`${d.s}7`).border = borderThin;
+        ws.getCell(`${d.e}7`).border = borderThin;
+      });
+
+      // Fila 8: Subencabezados
+      ws.getRow(8).height = 22;
+      ['C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'L', 'M'].forEach((col, idx) => {
+        const cell = ws.getCell(`${col}8`);
+        cell.value = (idx % 2 === 0) ? 'DOCENTE' : 'CURSO';
+        cell.font = fontSubheader;
+        cell.fill = fillNavySub;
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = borderThin;
+      });
+
+      // Reservas de la semana
+      const resWeek = weeksData[wIdx] || {};
+      const mon = resWeek.mon || {};
+      const tue = resWeek.tue || {};
+      const wed = resWeek.wed || {};
+      const thu = resWeek.thu || {};
+      const fri = resWeek.fri || {};
+
+      const rowsDef = [
+        {
+          r: 9, slotMain: '08:00 - 08:45', slotFri: '08:00 - 08:45',
+          data: {
+            C: mon['08:00 - 08:45']?.docente || '', D: mon['08:00 - 08:45']?.curso || '',
+            E: tue['08:00 - 08:45']?.docente || '', F: tue['08:00 - 08:45']?.curso || '',
+            G: wed['08:00 - 08:45']?.docente || '', H: wed['08:00 - 08:45']?.curso || '',
+            I: thu['08:00 - 08:45']?.docente || '', J: thu['08:00 - 08:45']?.curso || '',
+            L: fri['08:00 - 08:45']?.docente || '', M: fri['08:00 - 08:45']?.curso || ''
+          },
+          defaultBlocked: ['C', 'D', 'L', 'M']
+        },
+        {
+          r: 10, slotMain: '08:45 - 09:30', slotFri: '08:45 - 09:30',
+          data: {
+            C: mon['08:45 - 09:30']?.docente || '', D: mon['08:45 - 09:30']?.curso || '',
+            E: tue['08:45 - 09:30']?.docente || '', F: tue['08:45 - 09:30']?.curso || '',
+            G: wed['08:45 - 09:30']?.docente || '', H: wed['08:45 - 09:30']?.curso || '',
+            I: thu['08:45 - 09:30']?.docente || '', J: thu['08:45 - 09:30']?.curso || '',
+            L: fri['08:45 - 09:30']?.docente || '', M: fri['08:45 - 09:30']?.curso || ''
+          },
+          defaultBlocked: ['L', 'M']
+        },
+        {
+          r: 11, slotMain: '09:30 - 10:15', slotFri: '',
+          data: {
+            C: mon['09:30 - 10:15']?.docente || '', D: mon['09:30 - 10:15']?.curso || '',
+            E: tue['09:30 - 10:15']?.docente || '', F: tue['09:30 - 10:15']?.curso || '',
+            G: wed['09:30 - 10:15']?.docente || '', H: wed['09:30 - 10:15']?.curso || '',
+            I: thu['09:30 - 10:15']?.docente || '', J: thu['09:30 - 10:15']?.curso || '',
+            L: '', M: ''
+          },
+          defaultBlocked: ['E', 'F']
+        },
+        { r: 12, isBreak: true },
+        {
+          r: 13, slotMain: '10:30 - 11:15', slotFri: '',
+          data: {
+            C: mon['10:30 - 11:15']?.docente || '', D: mon['10:30 - 11:15']?.curso || '',
+            E: tue['10:30 - 11:15']?.docente || '', F: tue['10:30 - 11:15']?.curso || '',
+            G: wed['10:30 - 11:15']?.docente || '', H: wed['10:30 - 11:15']?.curso || '',
+            I: thu['10:30 - 11:15']?.docente || '', J: thu['10:30 - 11:15']?.curso || '',
+            L: '', M: ''
+          },
+          defaultBlocked: []
+        },
+        {
+          r: 14, slotMain: '11:15 - 12:00', slotFri: '10:30 - 11:15',
+          data: {
+            C: mon['11:15 - 12:00']?.docente || '', D: mon['11:15 - 12:00']?.curso || '',
+            E: tue['11:15 - 12:00']?.docente || '', F: tue['11:15 - 12:00']?.curso || '',
+            G: wed['11:15 - 12:00']?.docente || '', H: wed['11:15 - 12:00']?.curso || '',
+            I: thu['11:15 - 12:00']?.docente || '', J: thu['11:15 - 12:00']?.curso || '',
+            L: fri['10:30 - 11:15']?.docente || '', M: fri['10:30 - 11:15']?.curso || ''
+          },
+          defaultBlocked: []
+        },
+        { r: 15, isBreak: true },
+        {
+          r: 16, slotMain: '12:15 - 13:00', slotFri: '11:30 - 12:15',
+          data: {
+            C: mon['12:15 - 13:00']?.docente || '', D: mon['12:15 - 13:00']?.curso || '',
+            E: tue['12:15 - 13:00']?.docente || '', F: tue['12:15 - 13:00']?.curso || '',
+            G: wed['12:15 - 13:00']?.docente || '', H: wed['12:15 - 13:00']?.curso || '',
+            I: thu['12:15 - 13:00']?.docente || '', J: thu['12:15 - 13:00']?.curso || '',
+            L: (fri['11:30 - 12:15'] || fri['11:15 - 12:00'])?.docente || '', M: (fri['11:30 - 12:15'] || fri['11:15 - 12:00'])?.curso || ''
+          },
+          defaultBlocked: ['I', 'J']
+        },
+        {
+          r: 17, slotMain: '13:00 - 13:45', slotFri: '12:15 - 13:00',
+          data: {
+            C: mon['13:00 - 13:45']?.docente || '', D: mon['13:00 - 13:45']?.curso || '',
+            E: tue['13:00 - 13:45']?.docente || '', F: tue['13:00 - 13:45']?.curso || '',
+            G: wed['13:00 - 13:45']?.docente || '', H: wed['13:00 - 13:45']?.curso || '',
+            I: thu['13:00 - 13:45']?.docente || '', J: thu['13:00 - 13:45']?.curso || '',
+            L: (fri['12:15 - 13:00'] || fri['13:00 - 13:45'])?.docente || '', M: (fri['12:15 - 13:00'] || fri['13:00 - 13:45'])?.curso || ''
+          },
+          defaultBlocked: ['I', 'J', 'L', 'M']
+        },
+        { r: 18, isBreak: true },
+        {
+          r: 19, slotMain: '14:30 - 15:15', slotFri: '',
+          data: {
+            C: mon['14:30 - 15:15']?.docente || '', D: mon['14:30 - 15:15']?.curso || '',
+            E: tue['14:30 - 15:15']?.docente || '', F: tue['14:30 - 15:15']?.curso || '',
+            G: wed['14:30 - 15:15']?.docente || '', H: wed['14:30 - 15:15']?.curso || '',
+            I: thu['14:30 - 15:15']?.docente || '', J: thu['14:30 - 15:15']?.curso || '',
+            L: '', M: ''
+          },
+          defaultBlocked: []
+        },
+        {
+          r: 20, slotMain: '15:15 - 16:00', slotFri: '',
+          data: {
+            C: mon['15:15 - 16:00']?.docente || '', D: mon['15:15 - 16:00']?.curso || '',
+            E: tue['15:15 - 16:00']?.docente || '', F: tue['15:15 - 16:00']?.curso || '',
+            G: wed['15:15 - 16:00']?.docente || '', H: wed['15:15 - 16:00']?.curso || '',
+            I: thu['15:15 - 16:00']?.docente || '', J: thu['15:15 - 16:00']?.curso || '',
+            L: '', M: ''
+          },
+          defaultBlocked: []
+        },
+        { r: 21, isBreak: true }
+      ];
+
+      rowsDef.forEach(item => {
+        const row = ws.getRow(item.r);
+        if (item.isBreak) {
+          row.height = 10;
+          ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M'].forEach(c => {
+            ws.getCell(`${c}${item.r}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+          });
+          return;
+        }
+
+        row.height = 28;
+
+        const bCell = ws.getCell(`B${item.r}`);
+        bCell.value = item.slotMain;
+        bCell.font = fontSlotBadge;
+        bCell.fill = fillSlot;
+        bCell.alignment = { vertical: 'middle', horizontal: 'center' };
+        bCell.border = borderThin;
+
+        const dayCols = [
+          { d: 'C', c: 'D' },
+          { d: 'E', c: 'F' },
+          { d: 'G', c: 'H' },
+          { d: 'I', c: 'J' },
+        ];
+
+        dayCols.forEach(pair => {
+          const docVal = item.data[pair.d] || '';
+          const curVal = item.data[pair.c] || '';
+          const isBlocked = item.defaultBlocked.includes(pair.d) ||
+                            docVal.toUpperCase().includes('BLOQUEO') ||
+                            curVal.toUpperCase().includes('BLOQUEO');
+
+          const dCell = ws.getCell(`${pair.d}${item.r}`);
+          const cCell = ws.getCell(`${pair.c}${item.r}`);
+
+          dCell.value = isBlocked ? (docVal.includes('BLOQUEO') ? docVal : '') : docVal;
+          cCell.value = isBlocked ? (curVal.includes('BLOQUEO') ? curVal : '') : curVal;
+
+          dCell.font = fontDocente;
+          cCell.font = fontCurso;
+          dCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+          cCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+          dCell.border = borderThin;
+          cCell.border = borderThin;
+
+          if (isBlocked) {
+            dCell.fill = fillBlocked;
+            cCell.fill = fillBlocked;
+          } else {
+            const curUpper = curVal.toUpperCase();
+            let cellFill = fillWhite;
+            if (curUpper.includes('EDUTEN')) {
+              cellFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } };
+            } else if (curUpper.includes('BEEVERSO')) {
+              cellFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
+            } else if (curUpper.includes('MEDIO')) {
+              cellFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF9C3' } };
+            }
+            dCell.fill = cellFill;
+            cCell.fill = cellFill;
+          }
+        });
+
+        if (item.slotFri) {
+          const kCell = ws.getCell(`K${item.r}`);
+          kCell.value = item.slotFri;
+          kCell.font = fontSlotBadge;
+          kCell.fill = fillSlot;
+          kCell.alignment = { vertical: 'middle', horizontal: 'center' };
+          kCell.border = borderThin;
+
+          const docVal = item.data.L || '';
+          const curVal = item.data.M || '';
+          const isBlocked = item.defaultBlocked.includes('L') ||
+                            docVal.toUpperCase().includes('BLOQUEO') ||
+                            curVal.toUpperCase().includes('BLOQUEO');
+
+          const lCell = ws.getCell(`L${item.r}`);
+          const mCell = ws.getCell(`M${item.r}`);
+
+          lCell.value = isBlocked ? (docVal.includes('BLOQUEO') ? docVal : '') : docVal;
+          mCell.value = isBlocked ? (curVal.includes('BLOQUEO') ? curVal : '') : curVal;
+
+          lCell.font = fontDocente;
+          mCell.font = fontCurso;
+          lCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+          mCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+          lCell.border = borderThin;
+          mCell.border = borderThin;
+
+          if (isBlocked) {
+            lCell.fill = fillBlocked;
+            mCell.fill = fillBlocked;
+          } else {
+            const curUpper = curVal.toUpperCase();
+            let cellFill = fillWhite;
+            if (curUpper.includes('EDUTEN')) {
+              cellFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } };
+            } else if (curUpper.includes('BEEVERSO')) {
+              cellFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
+            } else if (curUpper.includes('MEDIO')) {
+              cellFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF9C3' } };
+            }
+            lCell.fill = cellFill;
+            mCell.fill = cellFill;
+          }
+        }
+      });
+
+      // Fila 22: NOTA
+      ws.getRow(22).height = 24;
+      const noteTag = ws.getCell('B22');
+      noteTag.value = 'NOTA:';
+      noteTag.font = fontMetaLabel;
+      noteTag.alignment = { vertical: 'middle', horizontal: 'right' };
+
+      ws.mergeCells('C22:J22');
+      const noteText = ws.getCell('C22');
+      noteText.value = 'Los bloques sombreados corresponden a horarios donde no está disponible la sala.';
+      noteText.font = { name: 'Calibri', size: 9.5, italic: true, color: { argb: 'FF64748B' } };
+      noteText.alignment = { vertical: 'middle', horizontal: 'left' };
+    }
+
+    const fileName = `${month}_${monthName}_SALA_DE_COMPUTACION_${year}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error('Error en exportReservasExcel:', err);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: 'Error al exportar planilla Excel.' });
+    }
+  }
+}
+
 module.exports = {
   getMonthReservas,
   createOrUpdateReserva,
   deleteReserva,
-  batchImportReservas
+  batchImportReservas,
+  exportReservasExcel
 };
+
