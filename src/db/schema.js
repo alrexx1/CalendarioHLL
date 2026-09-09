@@ -11,8 +11,9 @@ async function initSchema() {
   const pool = db.getPool();
   if (!pool) return false;
 
-  const client = await pool.connect();
+  let client = null;
   try {
+    client = await pool.connect();
     console.log('🔄 [Neon DB] Creando/Verificando tablas (users, reservas)...');
 
     // Tabla de Usuarios y Administradores
@@ -65,7 +66,7 @@ async function initSchema() {
     db.setIsConnected(false);
     return false;
   } finally {
-    client.release();
+    if (client) client.release();
   }
 }
 

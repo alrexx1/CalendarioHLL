@@ -19,38 +19,42 @@ async function getMonthReservas(req, res) {
     const pool = db.getPool();
 
     if (pool && db.isNeonConnected()) {
-      const result = await pool.query(`
-        SELECT id, year_month, week_idx, day, slot, docente, curso, nota, is_blocked, user_email
-        FROM reservas
-        WHERE year_month = $1
-        ORDER BY week_idx ASC, day ASC, slot ASC;
-      `, [yearMonth]);
+      try {
+        const result = await pool.query(`
+          SELECT id, year_month, week_idx, day, slot, docente, curso, nota, is_blocked, user_email
+          FROM reservas
+          WHERE year_month = $1
+          ORDER BY week_idx ASC, day ASC, slot ASC;
+        `, [yearMonth]);
 
-      const weeksArray = [];
-      result.rows.forEach(row => {
-        const wIdx = row.week_idx;
-        while (weeksArray.length <= wIdx) {
-          weeksArray.push({});
-        }
-        if (!weeksArray[wIdx][row.day]) {
-          weeksArray[wIdx][row.day] = {};
-        }
-        weeksArray[wIdx][row.day][row.slot] = {
-          id: row.id,
-          docente: row.docente,
-          curso: row.curso,
-          nota: row.nota,
-          isBlocked: row.is_blocked,
-          userEmail: row.user_email
-        };
-      });
+        const weeksArray = [];
+        result.rows.forEach(row => {
+          const wIdx = row.week_idx;
+          while (weeksArray.length <= wIdx) {
+            weeksArray.push({});
+          }
+          if (!weeksArray[wIdx][row.day]) {
+            weeksArray[wIdx][row.day] = {};
+          }
+          weeksArray[wIdx][row.day][row.slot] = {
+            id: row.id,
+            docente: row.docente,
+            curso: row.curso,
+            nota: row.nota,
+            isBlocked: row.is_blocked,
+            userEmail: row.user_email
+          };
+        });
 
-      return res.json({
-        success: true,
-        month: yearMonth,
-        source: 'neon',
-        data: weeksArray
-      });
+        return res.json({
+          success: true,
+          month: yearMonth,
+          source: 'neon',
+          data: weeksArray
+        });
+      } catch (neonErr) {
+        console.warn('⚠️ [Neon DB] Advertencia en getMonthReservas (usando fallback local):', neonErr.message);
+      }
     }
 
     // Fallback local
@@ -115,7 +119,8 @@ async function createOrUpdateReserva(req, res) {
       existingResv = localDb[yearMonth]?.[w]?.[day]?.[slot];
     }
 
-    if (existingResv) {
+    const isExistingAvailable = (existingResv?.curso === 'DISPONIBLE');
+    if (existingResv && !isExistingAvailable) {
       const existingIsBlocked = Boolean(existingResv.is_blocked || existingResv.isBlocked);
       const existingEmail = (existingResv.user_email || existingResv.userEmail || '').toLowerCase().trim();
 
@@ -230,20 +235,47 @@ async function deleteReserva(req, res) {
     const pool = db.getPool();
     let existingResv = null;
 
+    let effectiveSlot = slot;
     if (pool && db.isNeonConnected()) {
-      // Consultar datos de la reserva antes de eliminarla
-      const checkRes = await pool.query(`
-        SELECT docente, curso, nota, is_blocked, user_email
+      let checkRes = await pool.query(`
+        SELECT docente, curso, nota, is_blocked, user_email, slot
         FROM reservas
         WHERE year_month = $1 AND week_idx = $2 AND day = $3 AND slot = $4;
       `, [yearMonth, parseInt(weekIdx, 10), day, slot]);
 
+      if (checkRes.rows.length === 0 && day === 'fri') {
+        const altSlot = (slot === '10:30 - 11:15') ? '11:15 - 12:00' :
+                        (slot === '11:15 - 12:00') ? '10:30 - 11:15' :
+                        (slot === '12:15 - 13:00') ? '13:00 - 13:45' :
+                        (slot === '13:00 - 13:45') ? '12:15 - 13:00' : null;
+        if (altSlot) {
+          const altCheck = await pool.query(`
+            SELECT docente, curso, nota, is_blocked, user_email, slot
+            FROM reservas
+            WHERE year_month = $1 AND week_idx = $2 AND day = $3 AND slot = $4;
+          `, [yearMonth, parseInt(weekIdx, 10), day, altSlot]);
+          if (altCheck.rows.length > 0) {
+            checkRes = altCheck;
+            effectiveSlot = altSlot;
+          }
+        }
+      }
+
       existingResv = checkRes.rows[0];
     } else {
-      // Fallback local
       const localDb = db.getLocalJson();
       const w = parseInt(weekIdx, 10);
       existingResv = localDb[yearMonth]?.[w]?.[day]?.[slot];
+      if (!existingResv && day === 'fri') {
+        const altSlot = (slot === '10:30 - 11:15') ? '11:15 - 12:00' :
+                        (slot === '11:15 - 12:00') ? '10:30 - 11:15' :
+                        (slot === '12:15 - 13:00') ? '13:00 - 13:45' :
+                        (slot === '13:00 - 13:45') ? '12:15 - 13:00' : null;
+        if (altSlot && localDb[yearMonth]?.[w]?.[day]?.[altSlot]) {
+          existingResv = localDb[yearMonth][w][day][altSlot];
+          effectiveSlot = altSlot;
+        }
+      }
     }
 
     // Validar permisos de eliminación
@@ -270,12 +302,12 @@ async function deleteReserva(req, res) {
       await pool.query(`
         DELETE FROM reservas
         WHERE year_month = $1 AND week_idx = $2 AND day = $3 AND slot = $4;
-      `, [yearMonth, parseInt(weekIdx, 10), day, slot]);
+      `, [yearMonth, parseInt(weekIdx, 10), day, effectiveSlot]);
     } else {
       const localDb = db.getLocalJson();
       const w = parseInt(weekIdx, 10);
-      if (localDb[yearMonth]?.[w]?.[day]?.[slot]) {
-        delete localDb[yearMonth][w][day][slot];
+      if (localDb[yearMonth]?.[w]?.[day]?.[effectiveSlot]) {
+        delete localDb[yearMonth][w][day][effectiveSlot];
         db.saveLocalJson(localDb);
       }
     }

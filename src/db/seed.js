@@ -13,8 +13,9 @@ async function seedInitialData() {
   const pool = db.getPool();
   if (!pool || !db.isNeonConnected()) return;
 
-  const client = await pool.connect();
+  let client = null;
   try {
+    client = await pool.connect();
     // 1. Verificar y sembrar Administrador inicial
     const adminCheck = await client.query(
       `SELECT id, email, must_change_password FROM users WHERE role = 'administrator' LIMIT 1;`
@@ -79,7 +80,7 @@ async function seedInitialData() {
   } catch (err) {
     console.error('❌ [Neon DB] Error durante la siembra de datos iniciales:', err.message);
   } finally {
-    client.release();
+    if (client) client.release();
   }
 }
 

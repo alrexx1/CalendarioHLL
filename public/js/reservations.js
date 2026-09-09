@@ -30,7 +30,7 @@ const Reservations = {
 
     semSel.value = String(weekIdx);
     diaSel.value = day || 'mon';
-    this.updateSlotSelect(diaSel.value, slot);
+    this.updateSlotSelect(diaSel.value, slot, weekIdx);
 
     if (Auth.isAdmin) {
       docenteField.value = '';
@@ -62,10 +62,15 @@ const Reservations = {
     document.getElementById('modal-overlay')?.classList.remove('open');
   },
 
-  updateSlotSelect(day, targetSlot) {
+  updateSlotSelect(day, targetSlot, weekIdx = null) {
     const bloqSel = document.getElementById('f-bloque');
     if (!bloqSel) return;
     bloqSel.innerHTML = '';
+
+    const currentWIdx = (weekIdx !== null && weekIdx !== undefined)
+      ? parseInt(weekIdx, 10)
+      : parseInt(document.getElementById('f-semana')?.value || Calendar.currentWeek, 10);
+    const w = Calendar.activeWeeks[currentWIdx];
 
     if (day === 'fri') {
       if (Auth.isAdmin) {
@@ -86,10 +91,16 @@ const Reservations = {
           bloqSel.appendChild(opt);
         });
       } else {
-        [
+        const friSlots = [
           { id: '10:30 - 11:15', label: '10:30 – 11:15 (Bloque Viernes)' },
           { id: '11:30 - 12:15', label: '11:30 – 12:15 (Bloque Viernes)' }
-        ].forEach(s => {
+        ];
+        ['08:00 - 08:45', '08:45 - 09:30', '12:15 - 13:00'].forEach(extraSlot => {
+          if (w?.reservations?.fri?.[extraSlot]?.curso === 'DISPONIBLE') {
+            friSlots.unshift({ id: extraSlot, label: `${extraSlot} (Habilitado por admin)` });
+          }
+        });
+        friSlots.forEach(s => {
           const opt = document.createElement('option');
           opt.value = s.id;
           opt.textContent = s.label;
@@ -109,11 +120,12 @@ const Reservations = {
         '15:15 - 16:00'
       ];
       standardSlots.forEach(s => {
-        const isBlocked = Calendar.DEFAULT_BLOCKED_SLOTS?.[day]?.includes(s);
-        if (!Auth.isAdmin && isBlocked) return;
+        const isDefaultBlocked = Calendar.DEFAULT_BLOCKED_SLOTS?.[day]?.includes(s);
+        const isHabilitado = (w?.reservations?.[day]?.[s]?.curso === 'DISPONIBLE');
+        if (!Auth.isAdmin && isDefaultBlocked && !isHabilitado) return;
         const opt = document.createElement('option');
         opt.value = s;
-        opt.textContent = isBlocked ? `${s} (No disponible institucional)` : s;
+        opt.textContent = (isDefaultBlocked && !isHabilitado) ? `${s} (No disponible institucional)` : s;
         bloqSel.appendChild(opt);
       });
     }
@@ -224,9 +236,23 @@ const Reservations = {
 
     if (Calendar.activeWeeks[weekIdx]?.reservations[day]) {
       delete Calendar.activeWeeks[weekIdx].reservations[day][slot];
+      if (day === 'fri') {
+        const altSlot = (slot === '10:30 - 11:15') ? '11:15 - 12:00' :
+                        (slot === '11:15 - 12:00') ? '10:30 - 11:15' :
+                        (slot === '12:15 - 13:00') ? '13:00 - 13:45' :
+                        (slot === '13:00 - 13:45') ? '12:15 - 13:00' : null;
+        if (altSlot) delete Calendar.activeWeeks[weekIdx].reservations[day][altSlot];
+      }
     }
     if (Calendar.db[ym]?.[weekIdx]?.[day]) {
       delete Calendar.db[ym][weekIdx][day][slot];
+      if (day === 'fri') {
+        const altSlot = (slot === '10:30 - 11:15') ? '11:15 - 12:00' :
+                        (slot === '11:15 - 12:00') ? '10:30 - 11:15' :
+                        (slot === '12:15 - 13:00') ? '13:00 - 13:45' :
+                        (slot === '13:00 - 13:45') ? '12:15 - 13:00' : null;
+        if (altSlot) delete Calendar.db[ym][weekIdx][day][altSlot];
+      }
     }
     if (Calendar.cache) {
       Calendar.cache[ym] = { data: Calendar.db[ym], timestamp: Date.now() };
@@ -294,7 +320,7 @@ const Reservations = {
     const diaSel = document.getElementById('f-dia');
     if (diaSel) {
       diaSel.addEventListener('change', () => {
-        this.updateSlotSelect(diaSel.value);
+        this.updateSlotSelect(diaSel.value, null, document.getElementById('f-semana')?.value);
       });
     }
 
@@ -330,8 +356,22 @@ const Reservations = {
           if (!curso) { this.showError('Por favor ingresa el curso o actividad.'); return; }
         }
 
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+          if (submitBtn.disabled) return;
+          submitBtn.disabled = true;
+          submitBtn.dataset.origText = submitBtn.textContent;
+          submitBtn.textContent = 'Guardando...';
+        }
+
         const w = Calendar.activeWeeks[weekIdx];
-        if (!Auth.isAdmin && w.reservations[day]?.[slot]) {
+        const existingSlotResv = w?.reservations?.[day]?.[slot];
+        const isAvailableOverride = (existingSlotResv?.curso === 'DISPONIBLE');
+        if (!Auth.isAdmin && existingSlotResv && !isAvailableOverride) {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = submitBtn.dataset.origText || 'Guardar Reserva';
+          }
           this.showError('Este bloque ya está ocupado o bloqueado. Elige otro horario.');
           return;
         }
@@ -361,6 +401,10 @@ const Reservations = {
         Calendar.lastSyncTime = Date.now();
         Calendar.updateSyncUI?.();
 
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = submitBtn.dataset.origText || 'Guardar Reserva';
+        }
         this.closeAddModal();
         Calendar.render();
 

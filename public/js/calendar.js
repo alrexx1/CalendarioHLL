@@ -125,8 +125,8 @@ const Calendar = {
     const monthIdx = parseInt(monthStr, 10) - 1;
 
     const weeks = [];
-    const firstDayOfMonth = new Date(year, monthIdx, 1);
-    const lastDayOfMonth = new Date(year, monthIdx + 1, 0);
+    const firstDayOfMonth = new Date(year, monthIdx, 1, 12, 0, 0);
+    const lastDayOfMonth = new Date(year, monthIdx + 1, 0, 12, 0, 0);
 
     let curr = new Date(firstDayOfMonth);
     const firstDayOfWeek = curr.getDay(); // 0: Dom, 1: Lun, ..., 6: Sab
@@ -145,8 +145,10 @@ const Calendar = {
     let weekCount = 1;
     while (curr <= lastDayOfMonth || weeks.length === 0) {
       const mon = new Date(curr);
+      mon.setHours(0, 0, 0, 0);
       const fri = new Date(curr);
-      fri.setDate(mon.getDate() + 4);
+      fri.setDate(curr.getDate() + 4);
+      fri.setHours(23, 59, 59, 999);
 
       weeks.push({
         label: `Semana ${weekCount}`,
@@ -377,10 +379,12 @@ const Calendar = {
 
           const actualSlot = friDef.fridaySlot;
           let reservation = null;
+          let matchedSlotKey = actualSlot;
           const lookup = friDef.lookupSlots || [actualSlot];
           for (const s of lookup) {
             if (w.reservations.fri?.[s]) {
               reservation = w.reservations.fri[s];
+              matchedSlotKey = s;
               break;
             }
           }
@@ -392,7 +396,7 @@ const Calendar = {
                 slotCell.style.cursor = 'pointer';
                 slotCell.setAttribute('title', `Administrador: Clic para ver detalle o modificar (${friDef.label})`);
                 slotCell.addEventListener('click', () => {
-                  Reservations.showDetail(reservation, 'fri', actualSlot, this.currentWeek);
+                  Reservations.showDetail(reservation, 'fri', matchedSlotKey, this.currentWeek);
                 });
               }
               slotCell.innerHTML = `
@@ -451,7 +455,7 @@ const Calendar = {
             card.setAttribute('tabindex', '0');
             card.addEventListener('click', () => {
               if (typeof Reservations !== 'undefined') {
-                Reservations.showDetail(reservation, 'fri', actualSlot, this.currentWeek);
+                Reservations.showDetail(reservation, 'fri', matchedSlotKey, this.currentWeek);
               }
             });
             slotCell.appendChild(card);

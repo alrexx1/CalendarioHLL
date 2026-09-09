@@ -75,11 +75,15 @@ app.use(errorHandler);
 async function bootstrap() {
   console.log('🚀 [Servidor HLL] Inicializando servicios...');
 
-  const schemaOk = await initSchema();
-  if (schemaOk) {
-    await seedInitialData();
-  } else {
-    console.warn('⚠️ [Servidor HLL] Operando en modo local resiliente.');
+  try {
+    const schemaOk = await initSchema();
+    if (schemaOk) {
+      await seedInitialData();
+    } else {
+      console.warn('⚠️ [Servidor HLL] Operando en modo local resiliente.');
+    }
+  } catch (dbErr) {
+    console.warn('⚠️ [Servidor HLL] No fue posible inicializar Neon DB (operando en modo local):', dbErr.message);
   }
 
   app.listen(PORT, () => {
