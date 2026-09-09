@@ -291,15 +291,16 @@ const Calendar = {
     const w = this.activeWeeks[this.currentWeek] || this.activeWeeks[0];
     if (!w) return;
 
-    // Encabezado de Horas
+    // 1. Columna 1 Header: Horario Lun – Jue
     const timeHeader = document.createElement('div');
     timeHeader.className = 'cal-header-cell time-col';
     timeHeader.setAttribute('data-day', 'time');
-    timeHeader.textContent = 'Horario';
+    timeHeader.innerHTML = 'Horario<span class="day-date">Lun – Jue</span>';
     grid.appendChild(timeHeader);
 
-    // Encabezados de Días
-    this.DAYS.forEach((day, idx) => {
+    // 2. Columnas 2-5 Headers: Lunes a Jueves
+    const DAYS_MON_THU = ['mon', 'tue', 'wed', 'thu'];
+    DAYS_MON_THU.forEach((day, idx) => {
       const date = this.getDayDate(this.currentWeek, idx);
       const cell = document.createElement('div');
       cell.className = `cal-header-cell day-${day}${this.isToday(date) ? ' day-today' : ''}`;
@@ -308,203 +309,66 @@ const Calendar = {
       grid.appendChild(cell);
     });
 
-    // Filas de Horario
+    // 3. Columna 6 Header: Horario Viernes (Corte lateral entre Jueves y Viernes)
+    const friTimeHeader = document.createElement('div');
+    friTimeHeader.className = 'cal-header-cell time-col fri-time-col';
+    friTimeHeader.setAttribute('data-day', 'fri-time');
+    friTimeHeader.innerHTML = 'Horario<span class="day-date">Viernes</span>';
+    grid.appendChild(friTimeHeader);
+
+    // 4. Columna 7 Header: Viernes
+    const friDate = this.getDayDate(this.currentWeek, 4);
+    const friHeader = document.createElement('div');
+    friHeader.className = `cal-header-cell day-fri${this.isToday(friDate) ? ' day-today' : ''}`;
+    friHeader.setAttribute('data-day', 'fri');
+    friHeader.innerHTML = `${this.DAY_NAMES['fri']}<span class="day-date">${this.formatDate(friDate)}</span>`;
+    grid.appendChild(friHeader);
+
+    // 5. Filas de Horario
     this.TIME_SLOTS.forEach(ts => {
       if (ts.break) {
+        // Col 1: Break Time Lun-Jue
         const breakTime = document.createElement('div');
         breakTime.className = 'cal-break-cell';
         breakTime.setAttribute('data-day', 'time');
         breakTime.textContent = ts.label;
         grid.appendChild(breakTime);
 
-        this.DAYS.forEach((day) => {
+        // Cols 2-5: Break slots Lunes a Jueves
+        DAYS_MON_THU.forEach((day) => {
           const cell = document.createElement('div');
           cell.className = 'cal-slot break-row';
           cell.setAttribute('data-day', day);
           grid.appendChild(cell);
         });
+
+        // Col 6: Break Time Viernes
+        const friBreakTime = document.createElement('div');
+        friBreakTime.className = 'cal-break-cell fri-time-cell';
+        friBreakTime.setAttribute('data-day', 'fri-time');
+        friBreakTime.textContent = ts.label;
+        grid.appendChild(friBreakTime);
+
+        // Col 7: Break slot Viernes
+        const friBreakSlot = document.createElement('div');
+        friBreakSlot.className = 'cal-slot break-row';
+        friBreakSlot.setAttribute('data-day', 'fri');
+        grid.appendChild(friBreakSlot);
         return;
       }
 
+      // Col 1: Horario Lun-Jue
       const timeCell = document.createElement('div');
       timeCell.className = 'cal-time-cell';
       timeCell.setAttribute('data-day', 'time');
       timeCell.textContent = ts.label;
       grid.appendChild(timeCell);
 
-      this.DAYS.forEach(day => {
+      // Cols 2-5: Lunes, Martes, Miércoles, Jueves
+      DAYS_MON_THU.forEach(day => {
         const slotCell = document.createElement('div');
         slotCell.setAttribute('data-day', day);
 
-        // Tratamiento específico para el día VIERNES
-        if (day === 'fri') {
-          const friDef = this.FRIDAY_GRID_MAP.find(m => m.slotId === ts.id);
-          let customResv = w.reservations.fri?.[ts.id];
-
-          if (!friDef || friDef.fridaySlot === null) {
-            if (customResv && customResv.curso !== 'Sin Bloque' && customResv.curso !== 'DISPONIBLE') {
-              slotCell.className = 'cal-slot occupied-slot';
-              const card = document.createElement('div');
-              card.className = `reservation-card ${customResv.isBlocked ? 'blocked-card' : this.DAY_CLASSES.fri}`;
-              card.innerHTML = `
-                <span class="slot-friday-badge">🕒 ${ts.label}</span>
-                <span class="card-teacher">${customResv.isBlocked ? '🔒 NO DISPONIBLE' : customResv.docente}</span>
-                <span class="card-course">${customResv.curso || ''}</span>
-              `;
-              card.addEventListener('click', () => {
-                Reservations.showDetail(customResv, 'fri', ts.id, this.currentWeek);
-              });
-              slotCell.appendChild(card);
-              grid.appendChild(slotCell);
-              return;
-            }
-
-            slotCell.className = 'cal-slot slot-no-class';
-            if (Auth.isAdmin) {
-              slotCell.style.cursor = 'pointer';
-              slotCell.setAttribute('title', `Administrador: Clic para configurar o reservar este horario (${ts.label})`);
-              slotCell.addEventListener('click', () => {
-                Reservations.openAddModal(this.currentWeek, 'fri', ts.id);
-              });
-            }
-            slotCell.innerHTML = `
-              <div class="slot-no-class-inner">
-                <span class="no-class-text">${friDef ? friDef.label : '— Sin bloque —'}</span>
-                ${friDef?.isAfternoon ? '<span class="no-class-sub">Salida 13:00 hrs</span>' : ''}
-              </div>
-            `;
-            grid.appendChild(slotCell);
-            return;
-          }
-
-          const actualSlot = friDef.fridaySlot;
-          let reservation = null;
-          let matchedSlotKey = actualSlot;
-          const lookup = friDef.lookupSlots || [actualSlot];
-          for (const s of lookup) {
-            if (w.reservations.fri?.[s]) {
-              reservation = w.reservations.fri[s];
-              matchedSlotKey = s;
-              break;
-            }
-          }
-
-          if (reservation) {
-            if (reservation.curso === 'Sin Bloque' || reservation.isSinBloque) {
-              slotCell.className = 'cal-slot slot-no-class';
-              if (Auth.isAdmin) {
-                slotCell.style.cursor = 'pointer';
-                slotCell.setAttribute('title', `Administrador: Clic para ver detalle o modificar (${friDef.label})`);
-                slotCell.addEventListener('click', () => {
-                  Reservations.showDetail(reservation, 'fri', matchedSlotKey, this.currentWeek);
-                });
-              }
-              slotCell.innerHTML = `
-                <div class="slot-no-class-inner">
-                  <span class="no-class-text">— Sin bloque —</span>
-                  <span class="no-class-sub">Configurado por admin</span>
-                </div>
-              `;
-              grid.appendChild(slotCell);
-              return;
-            }
-
-            if (reservation.curso === 'DISPONIBLE') {
-              slotCell.className = 'cal-slot free-slot';
-              slotCell.setAttribute('title', `Disponible: Viernes ${friDef.label}`);
-              slotCell.innerHTML = `
-                <div class="slot-empty">
-                  <span class="slot-friday-badge free">🕒 ${friDef.label}</span>
-                  <div class="slot-empty-icon">+</div>
-                  <span class="slot-empty-label">Disponible</span>
-                </div>
-              `;
-              slotCell.addEventListener('click', () => {
-                if (!Auth.isTeacher && !Auth.isAdmin) {
-                  Auth.lockAccessWall();
-                } else if (typeof Reservations !== 'undefined') {
-                  Reservations.openAddModal(this.currentWeek, 'fri', actualSlot);
-                }
-              });
-              grid.appendChild(slotCell);
-              return;
-            }
-
-            slotCell.className = 'cal-slot occupied-slot';
-            const card = document.createElement('div');
-
-            if (reservation.isBlocked) {
-              card.className = 'reservation-card blocked-card';
-              card.setAttribute('title', `Bloqueado por Administración: ${reservation.curso || 'Uso institucional'}`);
-              card.innerHTML = `
-                <span class="slot-friday-badge">🕒 ${friDef.label}</span>
-                <span class="card-teacher">🔒 NO DISPONIBLE</span>
-                <span class="card-course">${reservation.curso || 'Uso institucional'}</span>
-              `;
-            } else {
-              card.className = `reservation-card ${this.DAY_CLASSES[day]}`;
-              card.setAttribute('title', `Viernes ${friDef.label}: ${reservation.docente} — ${reservation.curso}`);
-              let html = `<span class="slot-friday-badge">🕒 ${friDef.label}</span>`;
-              html += `<span class="card-teacher">${reservation.docente}</span>`;
-              html += `<span class="card-course">${reservation.curso}</span>`;
-              if (reservation.nota) html += `<span class="card-note">${reservation.nota}</span>`;
-              card.innerHTML = html;
-            }
-
-            card.setAttribute('role', 'button');
-            card.setAttribute('tabindex', '0');
-            card.addEventListener('click', () => {
-              if (typeof Reservations !== 'undefined') {
-                Reservations.showDetail(reservation, 'fri', matchedSlotKey, this.currentWeek);
-              }
-            });
-            slotCell.appendChild(card);
-          } else if (friDef.isDefaultBlocked) {
-            slotCell.className = 'cal-slot blocked-slot-cell';
-            const card = document.createElement('div');
-            card.className = 'reservation-card blocked-card default-blocked';
-            card.setAttribute('title', `Viernes ${friDef.label}: Horario no disponible según jornada institucional`);
-            card.innerHTML = `
-              <span class="slot-friday-badge">🕒 ${friDef.label}</span>
-              <span class="card-teacher">🔒 NO DISPONIBLE</span>
-              <span class="card-course">Horario institucional</span>
-            `;
-            card.addEventListener('click', () => {
-              if (Auth.isAdmin) {
-                Reservations.openAddModal(this.currentWeek, 'fri', actualSlot);
-              } else {
-                if (typeof showToast === 'function') {
-                  showToast('ℹ️ Este bloque no está disponible según la jornada institucional.');
-                } else {
-                  alert('Este bloque no está disponible según la jornada institucional.');
-                }
-              }
-            });
-            slotCell.appendChild(card);
-          } else {
-            slotCell.className = 'cal-slot free-slot';
-            slotCell.setAttribute('title', `Disponible: Viernes ${friDef.label}`);
-            slotCell.innerHTML = `
-              <div class="slot-empty">
-                <span class="slot-friday-badge free">🕒 ${friDef.label}</span>
-                <div class="slot-empty-icon">+</div>
-                <span class="slot-empty-label">Disponible</span>
-              </div>
-            `;
-            slotCell.addEventListener('click', () => {
-              if (!Auth.isTeacher && !Auth.isAdmin) {
-                Auth.lockAccessWall();
-              } else if (typeof Reservations !== 'undefined') {
-                Reservations.openAddModal(this.currentWeek, 'fri', actualSlot);
-              }
-            });
-          }
-
-          grid.appendChild(slotCell);
-          return;
-        }
-
-        // Tratamiento para LUNES, MARTES, MIÉRCOLES y JUEVES
         const reservation = w.reservations[day]?.[ts.id];
         const isDefaultBlocked = this.DEFAULT_BLOCKED_SLOTS[day]?.includes(ts.id);
 
@@ -603,6 +467,187 @@ const Calendar = {
 
         grid.appendChild(slotCell);
       });
+
+      // Col 6: Horario Viernes (Corte lateral entre Jueves y Viernes)
+      const friDef = this.FRIDAY_GRID_MAP.find(m => m.slotId === ts.id);
+      const friTimeCell = document.createElement('div');
+      friTimeCell.setAttribute('data-day', 'fri-time');
+      if (friDef && friDef.fridaySlot) {
+        friTimeCell.className = 'cal-time-cell fri-time-cell';
+        friTimeCell.textContent = friDef.fridaySlot.replace('-', '–');
+      } else {
+        friTimeCell.className = 'cal-time-cell fri-time-cell empty-time';
+        friTimeCell.textContent = '—';
+        friTimeCell.setAttribute('title', 'Sin bloque de clases el día viernes');
+      }
+      grid.appendChild(friTimeCell);
+
+      // Col 7: Celda de Viernes
+      const friSlotCell = document.createElement('div');
+      friSlotCell.setAttribute('data-day', 'fri');
+
+      let customResv = w.reservations.fri?.[ts.id];
+
+      if (!friDef || friDef.fridaySlot === null) {
+        if (ts.id !== '10:30 - 11:15' && customResv && customResv.curso !== 'Sin Bloque' && customResv.curso !== 'DISPONIBLE') {
+          friSlotCell.className = 'cal-slot occupied-slot';
+          const card = document.createElement('div');
+          card.className = `reservation-card ${customResv.isBlocked ? 'blocked-card' : this.DAY_CLASSES.fri}`;
+          card.innerHTML = `
+            <span class="slot-friday-badge">🕒 ${ts.label}</span>
+            <span class="card-teacher">${customResv.isBlocked ? '🔒 NO DISPONIBLE' : customResv.docente}</span>
+            <span class="card-course">${customResv.curso || ''}</span>
+          `;
+          card.addEventListener('click', () => {
+            Reservations.showDetail(customResv, 'fri', ts.id, this.currentWeek);
+          });
+          friSlotCell.appendChild(card);
+          grid.appendChild(friSlotCell);
+          return;
+        }
+
+        friSlotCell.className = 'cal-slot slot-no-class';
+        if (Auth.isAdmin) {
+          friSlotCell.style.cursor = 'pointer';
+          friSlotCell.setAttribute('title', `Administrador: Clic para configurar o reservar este horario (${ts.label})`);
+          friSlotCell.addEventListener('click', () => {
+            Reservations.openAddModal(this.currentWeek, 'fri', ts.id);
+          });
+        }
+        friSlotCell.innerHTML = `
+          <div class="slot-no-class-inner">
+            <span class="no-class-text">${friDef ? friDef.label : '— Sin bloque —'}</span>
+            ${friDef?.isAfternoon ? '<span class="no-class-sub">Salida 13:00 hrs</span>' : ''}
+          </div>
+        `;
+        grid.appendChild(friSlotCell);
+        return;
+      }
+
+      const actualSlot = friDef.fridaySlot;
+      let reservation = null;
+      let matchedSlotKey = actualSlot;
+      const lookup = friDef.lookupSlots || [actualSlot];
+      for (const s of lookup) {
+        if (w.reservations.fri?.[s]) {
+          reservation = w.reservations.fri[s];
+          matchedSlotKey = s;
+          break;
+        }
+      }
+
+      if (reservation) {
+        if (reservation.curso === 'Sin Bloque' || reservation.isSinBloque) {
+          friSlotCell.className = 'cal-slot slot-no-class';
+          if (Auth.isAdmin) {
+            friSlotCell.style.cursor = 'pointer';
+            friSlotCell.setAttribute('title', `Administrador: Clic para ver detalle o modificar (${friDef.label})`);
+            friSlotCell.addEventListener('click', () => {
+              Reservations.showDetail(reservation, 'fri', matchedSlotKey, this.currentWeek);
+            });
+          }
+          friSlotCell.innerHTML = `
+            <div class="slot-no-class-inner">
+              <span class="no-class-text">— Sin bloque —</span>
+              <span class="no-class-sub">Configurado por admin</span>
+            </div>
+          `;
+          grid.appendChild(friSlotCell);
+          return;
+        }
+
+        if (reservation.curso === 'DISPONIBLE') {
+          friSlotCell.className = 'cal-slot free-slot';
+          friSlotCell.setAttribute('title', `Disponible: Viernes ${friDef.label}`);
+          friSlotCell.innerHTML = `
+            <div class="slot-empty">
+              <span class="slot-friday-badge free">🕒 ${friDef.label}</span>
+              <div class="slot-empty-icon">+</div>
+              <span class="slot-empty-label">Disponible</span>
+            </div>
+          `;
+          friSlotCell.addEventListener('click', () => {
+            if (!Auth.isTeacher && !Auth.isAdmin) {
+              Auth.lockAccessWall();
+            } else if (typeof Reservations !== 'undefined') {
+              Reservations.openAddModal(this.currentWeek, 'fri', actualSlot);
+            }
+          });
+          grid.appendChild(friSlotCell);
+          return;
+        }
+
+        friSlotCell.className = 'cal-slot occupied-slot';
+        const card = document.createElement('div');
+
+        if (reservation.isBlocked) {
+          card.className = 'reservation-card blocked-card';
+          card.setAttribute('title', `Bloqueado por Administración: ${reservation.curso || 'Uso institucional'}`);
+          card.innerHTML = `
+            <span class="slot-friday-badge">🕒 ${friDef.label}</span>
+            <span class="card-teacher">🔒 NO DISPONIBLE</span>
+            <span class="card-course">${reservation.curso || 'Uso institucional'}</span>
+          `;
+        } else {
+          card.className = `reservation-card ${this.DAY_CLASSES.fri}`;
+          card.setAttribute('title', `Viernes ${friDef.label}: ${reservation.docente} — ${reservation.curso}`);
+          let html = `<span class="slot-friday-badge">🕒 ${friDef.label}</span>`;
+          html += `<span class="card-teacher">${reservation.docente}</span>`;
+          html += `<span class="card-course">${reservation.curso}</span>`;
+          if (reservation.nota) html += `<span class="card-note">${reservation.nota}</span>`;
+          card.innerHTML = html;
+        }
+
+        card.setAttribute('role', 'button');
+        card.setAttribute('tabindex', '0');
+        card.addEventListener('click', () => {
+          if (typeof Reservations !== 'undefined') {
+            Reservations.showDetail(reservation, 'fri', matchedSlotKey, this.currentWeek);
+          }
+        });
+        friSlotCell.appendChild(card);
+      } else if (friDef.isDefaultBlocked) {
+        friSlotCell.className = 'cal-slot blocked-slot-cell';
+        const card = document.createElement('div');
+        card.className = 'reservation-card blocked-card default-blocked';
+        card.setAttribute('title', `Viernes ${friDef.label}: Horario no disponible según jornada institucional`);
+        card.innerHTML = `
+          <span class="slot-friday-badge">🕒 ${friDef.label}</span>
+          <span class="card-teacher">🔒 NO DISPONIBLE</span>
+          <span class="card-course">Horario institucional</span>
+        `;
+        card.addEventListener('click', () => {
+          if (Auth.isAdmin) {
+            Reservations.openAddModal(this.currentWeek, 'fri', actualSlot);
+          } else {
+            if (typeof showToast === 'function') {
+              showToast('ℹ️ Este bloque no está disponible según la jornada institucional.');
+            } else {
+              alert('Este bloque no está disponible según la jornada institucional.');
+            }
+          }
+        });
+        friSlotCell.appendChild(card);
+      } else {
+        friSlotCell.className = 'cal-slot free-slot';
+        friSlotCell.setAttribute('title', `Disponible: Viernes ${friDef.label}`);
+        friSlotCell.innerHTML = `
+          <div class="slot-empty">
+            <span class="slot-friday-badge free">🕒 ${friDef.label}</span>
+            <div class="slot-empty-icon">+</div>
+            <span class="slot-empty-label">Disponible</span>
+          </div>
+        `;
+        friSlotCell.addEventListener('click', () => {
+          if (!Auth.isTeacher && !Auth.isAdmin) {
+            Auth.lockAccessWall();
+          } else if (typeof Reservations !== 'undefined') {
+            Reservations.openAddModal(this.currentWeek, 'fri', actualSlot);
+          }
+        });
+      }
+
+      grid.appendChild(friSlotCell);
     });
   },
 

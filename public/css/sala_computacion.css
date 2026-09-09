@@ -497,8 +497,8 @@ input:checked + .slider:before { transform: translateX(12px); background-color: 
 
 .calendar-grid {
   display: grid;
-  grid-template-columns: 130px repeat(5, 1fr);
-  min-width: 800px;
+  grid-template-columns: 110px 1fr 1fr 1fr 1fr 110px 1.05fr;
+  min-width: 960px;
   will-change: transform, opacity;
 }
 
@@ -552,6 +552,13 @@ input:checked + .slider:before { transform: translateX(12px); background-color: 
 .cal-header-cell.day-thu { border-top: 4px solid var(--col-thu); }
 .cal-header-cell.day-fri { border-top: 4px solid var(--col-fri); }
 
+/* Columna de Horario de Viernes (Corte entre Jueves y Viernes) */
+.cal-header-cell.fri-time-col {
+  border-left: 2.5px solid #64748B;
+  background: #E2E8F0;
+  color: var(--hll-navy);
+}
+
 .day-date { display: block; font-size: .72rem; font-weight: 500; margin-top: 2px; color: var(--text-muted); }
 .day-today { background: #E0F2FE !important; }
 
@@ -567,6 +574,25 @@ input:checked + .slider:before { transform: translateX(12px); background-color: 
   background: #F8FAFC;
 }
 
+/* Celda de Horario Viernes */
+.cal-time-cell.fri-time-cell {
+  border-left: 2.5px solid #CBD5E1;
+  background: #F8FAFC;
+  font-weight: 700;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  text-align: center;
+  justify-content: center;
+}
+
+.cal-time-cell.fri-time-cell.empty-time {
+  color: #94A3B8;
+  font-weight: 500;
+  font-size: 0.95rem;
+  background-color: #F8FAFC;
+  background-image: repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(226, 232, 240, 0.45) 8px, rgba(226, 232, 240, 0.45) 16px);
+}
+
 .cal-break-cell {
   border-bottom: 1px solid var(--border);
   padding: 6px 12px;
@@ -577,6 +603,12 @@ input:checked + .slider:before { transform: translateX(12px); background-color: 
   display: flex;
   align-items: center;
   background: #F1F5F9;
+}
+
+.cal-break-cell.fri-time-cell {
+  border-left: 2.5px solid #CBD5E1;
+  text-align: center;
+  justify-content: center;
 }
 .cal-slot.break-row {
   min-height: 32px;
@@ -1444,16 +1476,16 @@ select:not(.month-select):focus {
 }
 
 /* 2. Columna de Horario Fija (Sticky Left) en el Calendario */
-.cal-header-cell.time-col,
-.cal-time-cell,
-.cal-break-cell {
+.cal-header-cell.time-col:not(.fri-time-col),
+.cal-time-cell:not(.fri-time-cell),
+.cal-break-cell:not(.fri-time-cell) {
   position: sticky;
   left: 0;
   z-index: 10;
   background: #F8FAFC;
   box-shadow: 2px 0 6px rgba(0, 0, 0, 0.05);
 }
-.cal-header-cell.time-col {
+.cal-header-cell.time-col:not(.fri-time-col) {
   z-index: 12;
   background: #E2E8F0;
 }
@@ -1514,8 +1546,12 @@ select:not(.month-select):focus {
 .calendar-grid.filter-mon [data-day]:not([data-day="time"]):not([data-day="mon"]),
 .calendar-grid.filter-tue [data-day]:not([data-day="time"]):not([data-day="tue"]),
 .calendar-grid.filter-wed [data-day]:not([data-day="time"]):not([data-day="wed"]),
-.calendar-grid.filter-thu [data-day]:not([data-day="time"]):not([data-day="thu"]),
-.calendar-grid.filter-fri [data-day]:not([data-day="time"]):not([data-day="fri"]) {
+.calendar-grid.filter-thu [data-day]:not([data-day="time"]):not([data-day="thu"]) {
+  display: none !important;
+}
+
+/* En vista móvil para el Viernes: mostrar la columna de horario de Viernes + Viernes */
+.calendar-grid.filter-fri [data-day]:not([data-day="fri-time"]):not([data-day="fri"]) {
   display: none !important;
 }
 
@@ -1526,6 +1562,20 @@ select:not(.month-select):focus {
 .calendar-grid.filter-fri {
   grid-template-columns: 110px 1fr !important;
   min-width: 100% !important;
+}
+
+/* En vista móvil con filtro Viernes, la columna fri-time actúa como primera columna fija */
+.calendar-grid.filter-fri .cal-header-cell.fri-time-col,
+.calendar-grid.filter-fri .cal-time-cell.fri-time-cell,
+.calendar-grid.filter-fri .cal-break-cell.fri-time-cell {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  border-left: none;
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.05);
+}
+.calendar-grid.filter-fri .cal-header-cell.fri-time-col {
+  z-index: 12;
 }
 
 /* Indicador táctil para celdas disponibles */
@@ -1811,7 +1861,7 @@ select:not(.month-select):focus {
 
   /* Grilla del Calendario en Móvil */
   .calendar-grid {
-    min-width: 680px;
+    min-width: 760px;
   }
 
   .cal-header-cell {
