@@ -81,11 +81,60 @@ async function createOrUpdateReserva(req, res) {
       });
     }
 
+    const isAdmin = req.user?.role === 'administrator';
+    const reqUserEmail = (req.user?.email || '').toLowerCase().trim();
+
+    // 1. Solo administradores pueden registrar o alterar un bloqueo institucional
+    if (isBlocked && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Solo los administradores pueden aplicar o modificar bloqueos institucionales.'
+      });
+    }
+
     const pool = db.getPool();
     let savedSource = 'local';
     let savedId = null;
 
-    const effectiveEmail = (userEmail || req.user?.email || '').toLowerCase().trim();
+    // Email efectivo: los docentes siempre registran su propio email; el admin puede especificar uno si agenda por otro
+    const effectiveEmail = (isAdmin && userEmail)
+      ? userEmail.toLowerCase().trim()
+      : reqUserEmail;
+
+    // Verificar si ya existe una reserva en este bloque para validar permisos de sobreescritura
+    let existingResv = null;
+    if (pool && db.isNeonConnected()) {
+      const checkRes = await pool.query(
+        `SELECT docente, curso, nota, is_blocked, user_email FROM reservas WHERE year_month = $1 AND week_idx = $2 AND day = $3 AND slot = $4;`,
+        [yearMonth, parseInt(weekIdx, 10), day, slot]
+      );
+      existingResv = checkRes.rows[0];
+    } else {
+      const localDb = db.getLocalJson();
+      const w = parseInt(weekIdx, 10);
+      existingResv = localDb[yearMonth]?.[w]?.[day]?.[slot];
+    }
+
+    if (existingResv) {
+      const existingIsBlocked = Boolean(existingResv.is_blocked || existingResv.isBlocked);
+      const existingEmail = (existingResv.user_email || existingResv.userEmail || '').toLowerCase().trim();
+
+      // No se puede sobreescribir un bloqueo institucional a menos que sea admin
+      if (existingIsBlocked && !isAdmin) {
+        return res.status(403).json({
+          success: false,
+          message: 'Este bloque cuenta con un bloqueo institucional y no puede ser modificado por docentes.'
+        });
+      }
+
+      // No se puede sobreescribir la reserva de otro docente a menos que sea admin
+      if (!isAdmin && existingEmail && existingEmail !== reqUserEmail) {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes permisos para modificar la reserva de otro docente.'
+        });
+      }
+    }
 
     if (pool && db.isNeonConnected()) {
       const query = `
@@ -106,7 +155,7 @@ async function createOrUpdateReserva(req, res) {
         parseInt(weekIdx, 10),
         day,
         slot,
-        docente || (isBlocked ? '🔒 ADMIN' : ''),
+        docente || (isBlocked ? '🔒 ADMIN' : (req.user?.name || '')),
         curso || (isBlocked ? 'Bloqueo Institucional' : ''),
         nota || '',
         Boolean(isBlocked),
@@ -124,7 +173,7 @@ async function createOrUpdateReserva(req, res) {
       if (!localDb[yearMonth][w][day]) localDb[yearMonth][w][day] = {};
 
       localDb[yearMonth][w][day][slot] = {
-        docente: docente || (isBlocked ? '🔒 ADMIN' : ''),
+        docente: docente || (isBlocked ? '🔒 ADMIN' : (req.user?.name || '')),
         curso: curso || (isBlocked ? 'Bloqueo Institucional' : ''),
         nota: nota || '',
         isBlocked: Boolean(isBlocked),
@@ -136,7 +185,7 @@ async function createOrUpdateReserva(req, res) {
     // Notificación por correo asíncrona (no retrasa la respuesta HTTP)
     emailService.sendReservationCreatedNotification({
       reservation: {
-        docente: docente || (isBlocked ? '🔒 ADMIN' : ''),
+        docente: docente || (isBlocked ? '🔒 ADMIN' : (req.user?.name || '')),
         curso: curso || (isBlocked ? 'Bloqueo Institucional' : ''),
         nota: nota || '',
         isBlocked: Boolean(isBlocked),
@@ -175,11 +224,14 @@ async function deleteReserva(req, res) {
       });
     }
 
+    const isAdmin = req.user?.role === 'administrator';
+    const reqUserEmail = (req.user?.email || '').toLowerCase().trim();
+
     const pool = db.getPool();
     let existingResv = null;
 
     if (pool && db.isNeonConnected()) {
-      // Consultar datos de la reserva antes de eliminarla para incluir en el correo
+      // Consultar datos de la reserva antes de eliminarla
       const checkRes = await pool.query(`
         SELECT docente, curso, nota, is_blocked, user_email
         FROM reservas
@@ -187,17 +239,41 @@ async function deleteReserva(req, res) {
       `, [yearMonth, parseInt(weekIdx, 10), day, slot]);
 
       existingResv = checkRes.rows[0];
-
-      await pool.query(`
-        DELETE FROM reservas
-        WHERE year_month = $1 AND week_idx = $2 AND day = $3 AND slot = $4;
-      `, [yearMonth, parseInt(weekIdx, 10), day, slot]);
     } else {
       // Fallback local
       const localDb = db.getLocalJson();
       const w = parseInt(weekIdx, 10);
       existingResv = localDb[yearMonth]?.[w]?.[day]?.[slot];
+    }
 
+    // Validar permisos de eliminación
+    if (existingResv) {
+      const isBlockedResv = Boolean(existingResv.is_blocked || existingResv.isBlocked);
+      if (isBlockedResv && !isAdmin) {
+        return res.status(403).json({
+          success: false,
+          message: 'Solo los administradores pueden anular bloqueos institucionales.'
+        });
+      }
+
+      const ownerEmail = (existingResv.user_email || existingResv.userEmail || '').toLowerCase().trim();
+      if (!isAdmin && ownerEmail && ownerEmail !== reqUserEmail) {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes permisos para cancelar la reserva de otro docente.'
+        });
+      }
+    }
+
+    // Proceder con la eliminación en Neon o Local
+    if (pool && db.isNeonConnected()) {
+      await pool.query(`
+        DELETE FROM reservas
+        WHERE year_month = $1 AND week_idx = $2 AND day = $3 AND slot = $4;
+      `, [yearMonth, parseInt(weekIdx, 10), day, slot]);
+    } else {
+      const localDb = db.getLocalJson();
+      const w = parseInt(weekIdx, 10);
       if (localDb[yearMonth]?.[w]?.[day]?.[slot]) {
         delete localDb[yearMonth][w][day][slot];
         db.saveLocalJson(localDb);
@@ -234,7 +310,7 @@ async function deleteReserva(req, res) {
       slot,
       weekIdx,
       yearMonth,
-      cancelledBy: req.user?.name || req.user?.email || 'Administrador HLL'
+      cancelledBy: req.user?.name || req.user?.email || 'Docente HLL'
     }).catch(e => console.warn('Aviso email cancelación:', e.message));
 
     return res.json({

@@ -140,7 +140,9 @@ const Reservations = {
     const dayIdx = Calendar.DAYS.indexOf(day);
     const date = Calendar.getDayDate(weekIdx, dayIdx);
 
-    const canDelete = Auth.isAdmin || (Auth.currentUser && reservation.userCreated);
+    const isOwner = Auth.currentUser && reservation.userEmail &&
+      (Auth.currentUser.email.toLowerCase() === reservation.userEmail.toLowerCase());
+    const canDelete = Auth.isAdmin || isOwner || Boolean(reservation.userCreated);
 
     const body = document.getElementById('detail-body');
     if (!body) return;
@@ -256,7 +258,7 @@ const Reservations = {
   bindEvents() {
     document.getElementById('btn-add-modal')?.addEventListener('click', () => {
       if (!Auth.isTeacher && !Auth.isAdmin) {
-        Auth.openAdminLoginModal();
+        Auth.lockAccessWall();
       } else {
         this.openAddModal(Calendar.currentWeek, 'mon', null);
       }

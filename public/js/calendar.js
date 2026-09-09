@@ -32,7 +32,7 @@ const Calendar = {
     { slotId: '09:30 - 10:15', fridaySlot: null,            isClass: false, isDefaultBlocked: false, label: '— Sin bloque —' },
     { slotId: '10:30 - 11:15', fridaySlot: null,            isClass: false, isDefaultBlocked: false, label: '— Sin bloque —' },
     { slotId: '11:15 - 12:00', fridaySlot: '10:30 - 11:15', isClass: true,  isDefaultBlocked: false, label: '10:30 – 11:15', lookupSlots: ['10:30 - 11:15', '11:15 - 12:00'] },
-    { slotId: '12:15 - 13:00', fridaySlot: '11:30 - 12:15', isClass: true,  isDefaultBlocked: false, label: '11:30 – 12:15', lookupSlots: ['11:30 - 12:15', '12:15 - 13:00'] },
+    { slotId: '12:15 - 13:00', fridaySlot: '11:30 - 12:15', isClass: true,  isDefaultBlocked: false, label: '11:30 – 12:15', lookupSlots: ['11:30 - 12:15'] },
     { slotId: '13:00 - 13:45', fridaySlot: '12:15 - 13:00', isClass: false, isDefaultBlocked: true,  label: '12:15 – 13:00', lookupSlots: ['12:15 - 13:00', '13:00 - 13:45'] },
     { slotId: '14:30 - 15:15', fridaySlot: null,            isClass: false, isDefaultBlocked: false, label: '— Sin clases —', isAfternoon: true },
     { slotId: '15:15 - 16:00', fridaySlot: null,            isClass: false, isDefaultBlocked: false, label: '— Sin clases —', isAfternoon: true },
@@ -129,8 +129,17 @@ const Calendar = {
     const lastDayOfMonth = new Date(year, monthIdx + 1, 0);
 
     let curr = new Date(firstDayOfMonth);
-    while (curr.getDay() !== 1) {
+    const firstDayOfWeek = curr.getDay(); // 0: Dom, 1: Lun, ..., 6: Sab
+
+    if (firstDayOfWeek === 0) {
+      // Domingo -> avanzar al lunes 2
       curr.setDate(curr.getDate() + 1);
+    } else if (firstDayOfWeek === 6) {
+      // Sábado -> avanzar al lunes 3
+      curr.setDate(curr.getDate() + 2);
+    } else if (firstDayOfWeek > 1) {
+      // Martes a Viernes -> retroceder al lunes de esa semana (no omitir días 1 al 4)
+      curr.setDate(curr.getDate() - (firstDayOfWeek - 1));
     }
 
     let weekCount = 1;
@@ -148,7 +157,6 @@ const Calendar = {
 
       weekCount++;
       curr.setDate(curr.getDate() + 7);
-      if (curr.getMonth() !== monthIdx && curr.getDate() > 7) break;
     }
 
     return weeks;
@@ -409,7 +417,7 @@ const Calendar = {
               `;
               slotCell.addEventListener('click', () => {
                 if (!Auth.isTeacher && !Auth.isAdmin) {
-                  Auth.openAdminLoginModal();
+                  Auth.lockAccessWall();
                 } else if (typeof Reservations !== 'undefined') {
                   Reservations.openAddModal(this.currentWeek, 'fri', actualSlot);
                 }
@@ -481,7 +489,7 @@ const Calendar = {
             `;
             slotCell.addEventListener('click', () => {
               if (!Auth.isTeacher && !Auth.isAdmin) {
-                Auth.openAdminLoginModal();
+                Auth.lockAccessWall();
               } else if (typeof Reservations !== 'undefined') {
                 Reservations.openAddModal(this.currentWeek, 'fri', actualSlot);
               }
@@ -522,7 +530,7 @@ const Calendar = {
             slotCell.innerHTML = `<div class="slot-empty"><div class="slot-empty-icon">+</div><span class="slot-empty-label">Disponible</span></div>`;
             slotCell.addEventListener('click', () => {
               if (!Auth.isTeacher && !Auth.isAdmin) {
-                Auth.openAdminLoginModal();
+                Auth.lockAccessWall();
               } else if (typeof Reservations !== 'undefined') {
                 Reservations.openAddModal(this.currentWeek, day, ts.id);
               }
@@ -582,7 +590,7 @@ const Calendar = {
           slotCell.innerHTML = `<div class="slot-empty"><div class="slot-empty-icon">+</div><span class="slot-empty-label">Disponible</span></div>`;
           slotCell.addEventListener('click', () => {
             if (!Auth.isTeacher && !Auth.isAdmin) {
-              Auth.openAdminLoginModal();
+              Auth.lockAccessWall();
             } else if (typeof Reservations !== 'undefined') {
               Reservations.openAddModal(this.currentWeek, day, ts.id);
             }
@@ -713,6 +721,7 @@ const Calendar = {
     if (cached && !forceRefresh) {
       this.db[ym] = cached.data;
       this.activeWeeks = this.buildMonthStructure(ym);
+      this.currentWeek = Math.max(0, Math.min(this.currentWeek, this.activeWeeks.length - 1));
       this.render();
       if (syncText) this.updateSyncUI();
       if (!isCacheFresh) {
@@ -731,6 +740,7 @@ const Calendar = {
         this.cache[ym] = { data: res.data, timestamp: Date.now() };
         this.db[ym] = res.data;
         this.activeWeeks = this.buildMonthStructure(ym);
+        this.currentWeek = Math.max(0, Math.min(this.currentWeek, this.activeWeeks.length - 1));
         this.render();
       }
       this.lastSyncTime = Date.now();
@@ -752,6 +762,7 @@ const Calendar = {
         this.cache[ym] = { data: res.data, timestamp: Date.now() };
         this.db[ym] = res.data;
         this.activeWeeks = this.buildMonthStructure(ym);
+        this.currentWeek = Math.max(0, Math.min(this.currentWeek, this.activeWeeks.length - 1));
         this.render();
         this.lastSyncTime = Date.now();
         this.updateSyncUI();

@@ -36,9 +36,8 @@ app.get('/sw.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'sw.js'));
 });
 
-// Servir archivos estáticos (public y raíz para compatibilidad)
+// Servir archivos estáticos únicamente desde la carpeta /public
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
-app.use(express.static(__dirname, { index: false }));
 
 // Rutas de Vistas Principales (Consolidación)
 app.get('/favicon.ico', (req, res) => {

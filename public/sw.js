@@ -5,7 +5,7 @@
  * ══════════════════════════════════════════════════════════════════════════════
  */
 
-const CACHE_NAME = 'hll-calendario-v1.3';
+const CACHE_NAME = 'hll-calendario-v1.4';
 
 const STATIC_ASSETS = [
   '/',
@@ -66,9 +66,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. Archivos estáticos: Estrategia Stale-While-Revalidate (Carga instantánea + actualización en segundo plano)
+  // 2. Archivos estáticos: Estrategia Stale-While-Revalidate con coincidencia ignorando query params (?v=1.4)
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
+    caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
         if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
           const responseToCache = networkResponse.clone();
@@ -77,7 +77,12 @@ self.addEventListener('fetch', (event) => {
           });
         }
         return networkResponse;
-      }).catch(() => cachedResponse);
+      }).catch(() => {
+        return cachedResponse || new Response('Recurso no disponible sin conexión', {
+          status: 503,
+          statusText: 'Service Unavailable'
+        });
+      });
 
       return cachedResponse || fetchPromise;
     })

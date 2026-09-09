@@ -25,50 +25,59 @@ async function login(req, res) {
   }
 
   const pool = db.getPool();
-  if (pool && db.isNeonConnected()) {
-    try {
-      const result = await pool.query(
-        `SELECT id, email, password_hash, name, role, must_change_password FROM users WHERE email = $1;`,
-        [email]
-      );
-
-      if (result.rows.length > 0) {
-        const user = result.rows[0];
-        const isMatch = verifyPassword(password, user.password_hash);
-
-        if (isMatch) {
-          const token = generateToken({
-            userId: user.id,
-            email: user.email,
-            name: user.name,
-            role: user.role,
-            mustChangePassword: user.must_change_password
-          });
-
-          return res.json({
-            success: true,
-            message: user.must_change_password
-              ? 'Inicio de sesión correcto. Debe cambiar su contraseña obligatoriamente.'
-              : 'Autenticación exitosa.',
-            mustChangePassword: Boolean(user.must_change_password),
-            user: {
-              name: user.name,
-              email: user.email,
-              role: user.role
-            },
-            token
-          });
-        }
-      }
-    } catch (err) {
-      console.error('Error durante autenticación en Neon:', err.message);
-    }
+  if (!pool || !db.isNeonConnected()) {
+    return res.status(503).json({
+      success: false,
+      message: 'Servicio de base de datos no disponible temporalmente. Por favor intente en unos momentos.'
+    });
   }
 
-  return res.status(401).json({
-    success: false,
-    message: 'Correo electrónico o contraseña incorrectos.'
-  });
+  try {
+    const result = await pool.query(
+      `SELECT id, email, password_hash, name, role, must_change_password FROM users WHERE email = $1;`,
+      [email]
+    );
+
+    if (result.rows.length > 0) {
+      const user = result.rows[0];
+      const isMatch = verifyPassword(password, user.password_hash);
+
+      if (isMatch) {
+        const token = generateToken({
+          userId: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          mustChangePassword: user.must_change_password
+        });
+
+        return res.json({
+          success: true,
+          message: user.must_change_password
+            ? 'Inicio de sesión correcto. Debe cambiar su contraseña obligatoriamente.'
+            : 'Autenticación exitosa.',
+          mustChangePassword: Boolean(user.must_change_password),
+          user: {
+            name: user.name,
+            email: user.email,
+            role: user.role
+          },
+          token
+        });
+      }
+    }
+
+    return res.status(401).json({
+      success: false,
+      message: 'Correo electrónico o contraseña incorrectos.'
+    });
+  } catch (err) {
+    console.error('Error durante autenticación en Neon:', err.message);
+    return res.status(503).json({
+      success: false,
+      message: 'Servicio de base de datos no disponible temporalmente. Por favor intente en unos momentos.'
+    });
+  }
 }
 
 /**

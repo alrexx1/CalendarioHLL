@@ -47,10 +47,10 @@ function createRateLimiter({ windowMs = 15 * 60 * 1000, max = 10, message = 'Dem
   };
 }
 
-// 1. Límite para inicio de sesión: máx. 10 intentos cada 10 minutos por IP
+// 1. Límite para inicio de sesión: máx. 60 intentos cada 10 minutos por IP (adaptado a IP compartida del colegio)
 const authLimiter = createRateLimiter({
   windowMs: 10 * 60 * 1000,
-  max: 10,
+  max: 60,
   message: 'Demasiados intentos de acceso fallidos. Por seguridad institucional de la Intranet HLL, su conexión ha sido temporalmente restringida.'
 });
 

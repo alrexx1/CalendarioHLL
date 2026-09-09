@@ -18,13 +18,24 @@ const Auth = {
     this.checkUrlAction();
   },
 
-  restoreSession() {
+  async restoreSession() {
     const savedUser = API.getUser();
     const token = API.getToken();
 
     if (savedUser && token) {
       this.setUserSession(savedUser, token);
       this.unlockAccessWall();
+
+      // Validar silenciosamente la sesión en segundo plano
+      try {
+        const res = await API.getProfile();
+        if (!res || !res.success) {
+          this.clearSession();
+        }
+      } catch (err) {
+        // En caso de 401 o token expirado, API.request o este bloque limpian la sesión
+        console.warn('⚠️ Sesión expirada o no válida al restaurar:', err.message);
+      }
     }
   },
 
@@ -448,6 +459,7 @@ const Auth = {
         }
 
         recoveryEmail = email;
+        this.recoveryEmail = email;
         const origText = sendBtn.textContent;
         sendBtn.disabled = true;
         sendBtn.textContent = 'Enviando código...';
