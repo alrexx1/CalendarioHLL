@@ -78,6 +78,7 @@ const Reservations = {
           { id: '08:00 - 08:45', label: '08:00 – 08:45 (Horario institucional)' },
           { id: '08:45 - 09:30', label: '08:45 – 09:30 (Horario institucional)' },
           { id: '09:30 - 10:15', label: '09:30 – 10:15 (Espacio sin bloque)' },
+          { id: '09:45 - 10:30', label: '09:45 – 10:30 (Bloque Viernes)' },
           { id: '10:30 - 11:15', label: '10:30 – 11:15 (Bloque Viernes)' },
           { id: '11:30 - 12:15', label: '11:30 – 12:15 (Bloque Viernes)' },
           { id: '12:15 - 13:00', label: '12:15 – 13:00 (Horario institucional)' },
@@ -92,6 +93,7 @@ const Reservations = {
         });
       } else {
         const friSlots = [
+          { id: '09:45 - 10:30', label: '09:45 – 10:30 (Bloque Viernes)' },
           { id: '10:30 - 11:15', label: '10:30 – 11:15 (Bloque Viernes)' },
           { id: '11:30 - 12:15', label: '11:30 – 12:15 (Bloque Viernes)' }
         ];

@@ -705,13 +705,13 @@ async function exportReservasExcel(req, res) {
         },
         { r: 12, isBreak: true },
         {
-          r: 13, slotMain: '10:30 - 11:15', slotFri: '',
+          r: 13, slotMain: '10:30 - 11:15', slotFri: '09:45 - 10:30',
           data: {
             C: mon['10:30 - 11:15']?.docente || '', D: mon['10:30 - 11:15']?.curso || '',
             E: tue['10:30 - 11:15']?.docente || '', F: tue['10:30 - 11:15']?.curso || '',
             G: wed['10:30 - 11:15']?.docente || '', H: wed['10:30 - 11:15']?.curso || '',
             I: thu['10:30 - 11:15']?.docente || '', J: thu['10:30 - 11:15']?.curso || '',
-            L: '', M: ''
+            L: fri['09:45 - 10:30']?.docente || '', M: fri['09:45 - 10:30']?.curso || ''
           },
           defaultBlocked: []
         },

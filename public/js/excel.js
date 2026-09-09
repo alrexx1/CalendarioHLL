@@ -29,6 +29,7 @@ const ExcelExport = {
     '08:00 - 08:45',
     '08:45 - 09:30',
     '09:30 - 10:15',
+    '09:45 - 10:30',
     '10:30 - 11:15',
     '11:15 - 12:00',
     '11:30 - 12:15',
@@ -329,13 +330,13 @@ const ExcelExport = {
       },
       { r: 12, isBreak: true },
       {
-        r: 13, slotMain: '10:30 - 11:15', slotFri: '',
+        r: 13, slotMain: '10:30 - 11:15', slotFri: '09:45 - 10:30',
         data: {
           C: mon['10:30 - 11:15']?.docente || '', D: mon['10:30 - 11:15']?.curso || '',
           E: tue['10:30 - 11:15']?.docente || '', F: tue['10:30 - 11:15']?.curso || '',
           G: wed['10:30 - 11:15']?.docente || '', H: wed['10:30 - 11:15']?.curso || '',
           I: thu['10:30 - 11:15']?.docente || '', J: thu['10:30 - 11:15']?.curso || '',
-          L: '', M: ''
+          L: fri['09:45 - 10:30']?.docente || '', M: fri['09:45 - 10:30']?.curso || ''
         },
         defaultBlocked: []
       },
@@ -871,9 +872,10 @@ const ExcelExport = {
     const clean = String(val).replace(/–/g, '-').replace(/\s+/g, ' ').trim();
 
     // Mapeo flexible
-    if (clean.includes('08:00') && clean.includes('08:45')) return '08:00 - 08:45';
-    if (clean.includes('08:45') && clean.includes('09:30')) return '08:45 - 09:30';
-    if (clean.includes('09:30') && clean.includes('10:15')) return '09:30 - 10:15';
+    if ((clean.includes('08:00') || clean.includes('8:00')) && (clean.includes('08:45') || clean.includes('8:45'))) return '08:00 - 08:45';
+    if ((clean.includes('08:45') || clean.includes('8:45')) && (clean.includes('09:30') || clean.includes('9:30'))) return '08:45 - 09:30';
+    if ((clean.includes('09:30') || clean.includes('9:30')) && clean.includes('10:15')) return '09:30 - 10:15';
+    if ((clean.includes('09:45') || clean.includes('9:45')) && clean.includes('10:30')) return '09:45 - 10:30';
     if (clean.includes('10:30') && clean.includes('11:15')) return '10:30 - 11:15';
     if (clean.includes('11:15') && clean.includes('12:00')) return '11:15 - 12:00';
     if (clean.includes('11:30') && clean.includes('12:15')) return '11:30 - 12:15';

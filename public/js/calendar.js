@@ -30,7 +30,7 @@ const Calendar = {
     { slotId: '08:00 - 08:45', fridaySlot: '08:00 - 08:45', isClass: false, isDefaultBlocked: true, label: '08:00 – 08:45' },
     { slotId: '08:45 - 09:30', fridaySlot: '08:45 - 09:30', isClass: false, isDefaultBlocked: true, label: '08:45 – 09:30' },
     { slotId: '09:30 - 10:15', fridaySlot: null,            isClass: false, isDefaultBlocked: false, label: '— Sin bloque —' },
-    { slotId: '10:30 - 11:15', fridaySlot: null,            isClass: false, isDefaultBlocked: false, label: '— Sin bloque —' },
+    { slotId: '10:30 - 11:15', fridaySlot: '09:45 - 10:30', isClass: true,  isDefaultBlocked: false, label: '09:45 – 10:30', lookupSlots: ['09:45 - 10:30'] },
     { slotId: '11:15 - 12:00', fridaySlot: '10:30 - 11:15', isClass: true,  isDefaultBlocked: false, label: '10:30 – 11:15', lookupSlots: ['10:30 - 11:15', '11:15 - 12:00'] },
     { slotId: '12:15 - 13:00', fridaySlot: '11:30 - 12:15', isClass: true,  isDefaultBlocked: false, label: '11:30 – 12:15', lookupSlots: ['11:30 - 12:15'] },
     { slotId: '13:00 - 13:45', fridaySlot: '12:15 - 13:00', isClass: false, isDefaultBlocked: true,  label: '12:15 – 13:00', lookupSlots: ['12:15 - 13:00', '13:00 - 13:45'] },
@@ -49,6 +49,7 @@ const Calendar = {
 
   // Bloques oficiales del Viernes para selects
   FRIDAY_SLOTS: [
+    { id: '09:45 - 10:30', label: '09:45 – 10:30 (Bloque Viernes)', isBlocked: false },
     { id: '10:30 - 11:15', label: '10:30 – 11:15 (Bloque Viernes)', isBlocked: false },
     { id: '11:30 - 12:15', label: '11:30 – 12:15 (Bloque Viernes)', isBlocked: false },
     { id: '08:00 - 08:45', label: '08:00 – 08:45 (No disponible institucional)', isBlocked: true },
