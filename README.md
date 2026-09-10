@@ -1,10 +1,10 @@
-# 🏫 Sistema de Reservas de Sala de Computación — Colegio HLL
+# Sistema de Reservas de Sala de Computación — Colegio HLL
 
 Aplicación web institucional para la gestión y reserva de bloques horarios de la Sala de Computación del **Colegio Santo Domingo Helen Lee Lassen**, adaptada para despliegue en la nube en **Render** con base de datos PostgreSQL serverless en **Neon**.
 
 ---
 
-## 🚀 Despliegue Rápido en Neon y Render
+## Despliegue Rápido en Neon y Render
 
 ### 1️⃣ Paso 1: Crear la Base de Datos en Neon (PostgreSQL)
 1. Ingresa a [console.neon.tech](https://console.neon.tech) y crea una cuenta gratuita.
@@ -18,7 +18,7 @@ Aplicación web institucional para la gestión y reserva de bloques horarios de 
    ```
 4. ¡Copia esa URL completa! Es tu variable `DATABASE_URL`.
 
-> 💡 **Nota:** La aplicación se encarga automáticamente de crear las tablas necesarias e insertar los datos iniciales de prueba de Agosto 2026 la primera vez que se conecte.
+>  **Nota:** La aplicación se encarga automáticamente de crear las tablas necesarias e insertar los datos iniciales de prueba de Agosto 2026 la primera vez que se conecte.
 
 ---
 
@@ -57,7 +57,7 @@ Aplicación web institucional para la gestión y reserva de bloques horarios de 
 
 ---
 
-## 🔒 Primer Inicio de Sesión y Seguridad
+## Primer Inicio de Sesión y Seguridad
 Al inicializar el sistema con una base de datos nueva:
 1. El sistema crea un usuario administrador inicial con contraseña temporal configurable vía `INITIAL_ADMIN_PASSWORD` (o por defecto `admin@colegiohll.cl`).
 2. Al ingresar por primera vez, el sistema exige obligatoriamente cambiar la contraseña por una clave personal antes de otorgar acceso.
