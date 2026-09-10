@@ -1,0 +1,9 @@
+# Robots.txt — Colegio Santo Domingo Helen Lee Lassen (HLL)
+# Sistema de Reservas de Sala de Computación
+
+User-agent: *
+Allow: /
+Disallow: /api/
+
+# Mapa del sitio
+Sitemap: https://calendariohll.onrender.com/sitemap.xml

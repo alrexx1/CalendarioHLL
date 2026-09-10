@@ -19,9 +19,18 @@ const reservationsRoutes = require('./src/routes/reservationsRoutes');
 const healthRoutes = require('./src/routes/healthRoutes');
 const errorHandler = require('./src/middleware/errorHandler');
 const { initKeepAlive } = require('./src/services/keepAliveService');
+const { enforceHttps, setSecurityHeaders } = require('./src/middleware/securityMiddleware');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Configuración de Seguridad en el Servidor
+app.disable('x-powered-by');
+app.set('trust proxy', 1);
+
+// Middlewares globales de seguridad (prioritarios)
+app.use(enforceHttps);
+app.use(setSecurityHeaders);
 
 // Middlewares globales
 app.use(cors());
@@ -34,6 +43,22 @@ app.get('/sw.js', (req, res) => {
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
   res.sendFile(path.join(__dirname, 'public', 'sw.js'));
+});
+
+// Rutas de Auditoría, SEO y Divulgación de Seguridad (RFC 9116)
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain');
+  res.sendFile(path.join(__dirname, 'public', 'robots.txt'));
+});
+
+app.get('/sitemap.xml', (req, res) => {
+  res.type('application/xml');
+  res.sendFile(path.join(__dirname, 'public', 'sitemap.xml'));
+});
+
+app.get(['/.well-known/security.txt', '/security.txt'], (req, res) => {
+  res.type('text/plain');
+  res.sendFile(path.join(__dirname, 'public', '.well-known', 'security.txt'));
 });
 
 // Servir archivos estáticos únicamente desde la carpeta /public

@@ -1,0 +1,8 @@
+# Security.txt — Colegio Santo Domingo Helen Lee Lassen
+# RFC 9116: Information for Security Researchers
+
+Contact: mailto:contacto@colegiohll.cl
+Expires: 2027-12-31T23:59:59.000Z
+Preferred-Languages: es, en
+Canonical: https://calendariohll.onrender.com/.well-known/security.txt
+Policy: https://calendariohll.onrender.com/
