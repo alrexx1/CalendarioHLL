@@ -25,6 +25,12 @@ const ExcelExport = {
     '12': 'DICIEMBRE'
   },
 
+  MONTH_TO_NUM: {
+    'ENERO': '01', 'FEBRERO': '02', 'MARZO': '03', 'ABRIL': '04',
+    'MAYO': '05', 'JUNIO': '06', 'JULIO': '07', 'AGOSTO': '08',
+    'SEPTIEMBRE': '09', 'SETIEMBRE': '09', 'OCTUBRE': '10', 'NOVIEMBRE': '11', 'DICIEMBRE': '12'
+  },
+
   STANDARD_SLOTS: [
     '08:00 - 08:45',
     '08:45 - 09:30',
@@ -181,6 +187,7 @@ const ExcelExport = {
 
     // Fila 1: Margen superior
     ws.getRow(1).height = 10;
+    ws.getCell('A1').value = ' ';
 
     // Fila 2: Cabecera con Logo en B2 y Título en C2:J2
     ws.getRow(2).height = 44;
@@ -730,15 +737,18 @@ const ExcelExport = {
     this.selectedFile = file;
     const dropText = document.getElementById('dropzone-text');
     if (dropText) {
-      dropText.innerHTML = `📄 <strong>${this.escapeHtml(file.name)}</strong> (${(file.size / 1024).toFixed(1)} KB)`;
+      dropText.innerHTML = `📄 <strong>${this.escapeHtml(file.name)}</strong> (${(file.size / 1024).toFixed(1)} KB)<br><small style="color:var(--primary); font-weight:normal;">⏳ Analizando pestañas y reservas...</small>`;
     }
+
+    // Detección previa de mes y año desde el nombre del archivo (ej: 09_SEPTIEMBRE_SALA_DE_COMPUTACION_2026.xlsx)
+    const fileMeta = this.detectMetaFromFileName(file.name);
 
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
-        this.parseWorkbook(workbook);
+        this.parseWorkbook(workbook, fileMeta);
       } catch (err) {
         console.error('Error al leer Excel:', err);
         this.showError('No fue posible leer el archivo Excel. Asegúrate de que no esté dañado.');
@@ -747,73 +757,201 @@ const ExcelExport = {
     reader.readAsArrayBuffer(file);
   },
 
-  parseWorkbook(wb) {
-    const reservations = [];
-    let sheetsProcessed = 0;
+  detectMetaFromFileName(fileName) {
+    let month = null;
+    let year = null;
+    const cleanName = fileName.toUpperCase().replace(/[_-]/g, ' ');
 
-    wb.SheetNames.forEach((sheetName, index) => {
-      const sheet = wb.Sheets[sheetName];
-      if (!sheet) return;
+    // 1. Buscar año de 4 dígitos
+    const yrMatch = cleanName.match(/\b(202\d)\b/);
+    if (yrMatch) year = yrMatch[1];
 
-      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-      if (!rows || rows.length === 0) return;
+    // 2. Buscar número de mes prefijo (ej: "09 SEPTIEMBRE")
+    const numPrefixMatch = cleanName.match(/\b(0[1-9]|1[0-2])\b/);
+    if (numPrefixMatch) month = numPrefixMatch[1];
 
-      let weekIdx = index;
-      const weekMatch = sheetName.match(/(\d+)/);
-      if (weekMatch) {
-        const parsedNum = parseInt(weekMatch[1], 10);
-        if (parsedNum >= 1 && parsedNum <= 6) {
-          weekIdx = parsedNum - 1;
+    // 3. Buscar nombre del mes
+    for (const [mName, mNum] of Object.entries(this.MONTH_TO_NUM || {})) {
+      if (new RegExp('\\b' + mName + '\\b', 'i').test(cleanName)) {
+        month = mNum;
+        break;
+      }
+    }
+
+    return { month, year };
+  },
+
+  detectSheetMeta(rows) {
+    let month = null;
+    let year = null;
+
+    if (!Array.isArray(rows)) return { month, year };
+
+    for (let r = 0; r < Math.min(8, rows.length); r++) {
+      const row = rows[r];
+      if (!Array.isArray(row)) continue;
+      for (let c = 0; c < row.length; c++) {
+        const val = String(row[c] || '').trim();
+        if (!val) continue;
+
+        const yrMatch = val.match(/\b(202\d)\b/);
+        if (yrMatch && !year) year = yrMatch[1];
+
+        for (const [mName, mNum] of Object.entries(this.MONTH_TO_NUM || {})) {
+          if (new RegExp('\\b' + mName + '\\b', 'i').test(val)) {
+            month = mNum;
+          }
         }
       }
+    }
 
-      const parsedSheetRes = this.parseSheetRows(rows, weekIdx);
+    return { month, year };
+  },
+
+  resolveWeekIndex(sheetName, sheetIndex) {
+    // 1. Patrón explícito de semana (ej: SEMANA_02, Semana 2, SEM_03, S4)
+    const semMatch = sheetName.match(/(?:semana|sem|s)[_\s-]*0*([1-6])\b/i);
+    if (semMatch) {
+      return parseInt(semMatch[1], 10) - 1;
+    }
+
+    // 2. Dígito único aislado entre 1 y 6
+    const digitMatch = sheetName.match(/\b0*([1-6])\b/);
+    if (digitMatch) {
+      return parseInt(digitMatch[1], 10) - 1;
+    }
+
+    // 3. Respaldo al índice de la pestaña (limitado a 5, correspondiente a Semana 6)
+    return Math.min(sheetIndex, 5);
+  },
+
+  parseWorkbook(wb, fileMeta = {}) {
+    const reservations = [];
+    const sheetBreakdown = [];
+    let sheetsProcessed = 0;
+    let detectedMonth = fileMeta.month || null;
+    let detectedYear = fileMeta.year || null;
+
+    // Primer escaneo para autodeterminar mes y año desde las cabeceras de las hojas
+    for (const sheetName of wb.SheetNames) {
+      const sheet = wb.Sheets[sheetName];
+      if (!sheet || !sheet['!ref']) continue;
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      const meta = this.detectSheetMeta(rows);
+      if (meta.month && !detectedMonth) detectedMonth = meta.month;
+      if (meta.year && !detectedYear) detectedYear = meta.year;
+      if (detectedMonth && detectedYear) break;
+    }
+
+    // Actualizar automáticamente los selectores de mes y año en el modal si fueron detectados
+    const monthSelect = document.getElementById('import-month-select');
+    const yearSelect = document.getElementById('import-year-select');
+    if (detectedMonth && monthSelect) monthSelect.value = detectedMonth;
+    if (detectedYear && yearSelect) yearSelect.value = detectedYear;
+
+    const currentTargetYM = `${yearSelect?.value || '2026'}-${monthSelect?.value || '09'}`;
+
+    // Procesar cada una de las pestañas del libro Excel
+    wb.SheetNames.forEach((sheetName, index) => {
+      const sheet = wb.Sheets[sheetName];
+      if (!sheet || !sheet['!ref']) return;
+
+      // ⚠️ CLAVE: Asegurar que el rango empiece siempre en la columna A (índice 0)
+      // para evitar que SheetJS desplace los índices si la columna A está vacía en una pestaña
+      const range = XLSX.utils.decode_range(sheet['!ref']);
+      range.s.c = 0;
+      sheet['!ref'] = XLSX.utils.encode_range(range);
+
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      if (!rows || rows.length === 0) return;
+
+      const sheetMeta = this.detectSheetMeta(rows);
+      const sheetYM = (sheetMeta.year && sheetMeta.month)
+        ? `${sheetMeta.year}-${sheetMeta.month}`
+        : currentTargetYM;
+
+      const weekIdx = this.resolveWeekIndex(sheetName, index);
+
+      const parsedSheetRes = this.parseSheetRows(rows, weekIdx, sheetYM);
       if (parsedSheetRes.length > 0) {
         reservations.push(...parsedSheetRes);
         sheetsProcessed++;
+        sheetBreakdown.push({
+          sheetName,
+          weekIdx,
+          count: parsedSheetRes.length,
+          sheetYM
+        });
       }
     });
 
     if (reservations.length === 0) {
-      this.showError('No se encontraron reservas con docentes o cursos válidos en el archivo. Comprueba que las celdas contengan datos.');
+      this.showError('No se encontraron reservas con docentes o cursos válidos en las pestañas del archivo. Comprueba que las celdas contengan datos.');
       document.getElementById('import-preview-area').style.display = 'none';
       document.getElementById('import-submit-btn').disabled = true;
       return;
     }
 
     this.parsedReservations = reservations;
-    this.renderPreview(reservations, sheetsProcessed);
+    this.sheetBreakdown = sheetBreakdown;
+    this.firstImportedWeek = sheetBreakdown.length > 0 ? sheetBreakdown[0].weekIdx : 0;
+
+    const dropText = document.getElementById('dropzone-text');
+    if (dropText && this.selectedFile) {
+      const monthLabel = this.MONTH_NAMES[monthSelect?.value] || monthSelect?.value || '';
+      dropText.innerHTML = `📄 <strong>${this.escapeHtml(this.selectedFile.name)}</strong> (${(this.selectedFile.size / 1024).toFixed(1)} KB)<br><span style="color:#10B981; font-weight:600; font-size:0.8rem;">✓ ${sheetsProcessed} pestaña(s) analizada(s) correctamente (${monthLabel} ${yearSelect?.value || ''})</span>`;
+    }
+
+    this.renderPreview(reservations, sheetsProcessed, sheetBreakdown);
   },
 
-  parseSheetRows(rows, weekIdx) {
+  parseSheetRows(rows, weekIdx, sheetYearMonth) {
     const results = [];
 
-    // Mapeo de columnas oficiales según el diseño exacto:
-    // Col B (1): Bloque Lunes-Jueves
-    // Col C (2): Lunes Docente, Col D (3): Lunes Curso
-    // Col E (4): Martes Docente, Col F (5): Martes Curso
-    // Col G (6): Miércoles Docente, Col H (7): Miércoles Curso
-    // Col I (8): Jueves Docente, Col J (9): Jueves Curso
-    // Col K (10): Bloque Viernes
-    // Col L (11): Viernes Docente, Col M (12): Viernes Curso
-    let colMap = {
-      mon: { doc: 2, cur: 3 },
-      tue: { doc: 4, cur: 5 },
-      wed: { doc: 6, cur: 7 },
-      thu: { doc: 8, cur: 9 },
-      fri: { doc: 11, cur: 12, slotCol: 10 }
+    // Detección dinámica y robusta de las columnas de horarios (Lunes-Jueves y Viernes)
+    let slotColMonThu = -1;
+    let slotColFri = -1;
+
+    for (let r = 0; r < Math.min(30, rows.length); r++) {
+      const row = rows[r];
+      if (!Array.isArray(row)) continue;
+      for (let c = 0; c < row.length; c++) {
+        if (this.normalizeSlot(row[c])) {
+          if (slotColMonThu === -1) {
+            slotColMonThu = c;
+          } else if (c > slotColMonThu + 4 && slotColFri === -1) {
+            slotColFri = c;
+          }
+        }
+      }
+      if (slotColMonThu !== -1 && slotColFri !== -1) break;
+    }
+
+    // Respaldo inteligente al diseño institucional estándar (margen en Col A)
+    if (slotColMonThu === -1) slotColMonThu = 1;
+    if (slotColFri === -1) slotColFri = slotColMonThu + 9;
+
+    const baseM = slotColMonThu;
+    const baseF = slotColFri;
+
+    // Mapeo dinámico relativo a las columnas de horarios detectadas
+    const colMap = {
+      mon: { doc: baseM + 1, cur: baseM + 2 },
+      tue: { doc: baseM + 3, cur: baseM + 4 },
+      wed: { doc: baseM + 5, cur: baseM + 6 },
+      thu: { doc: baseM + 7, cur: baseM + 8 },
+      fri: { doc: baseF + 1, cur: baseF + 2, slotCol: baseF }
     };
 
     rows.forEach((row) => {
       if (!Array.isArray(row) || row.length === 0) return;
 
-      // Buscar si la fila define un bloque horario en Col B (índice 1)
-      const slotMonThu = this.normalizeSlot(row[1]);
-      const slotFri = this.normalizeSlot(row[10]) || slotMonThu;
+      const slotMonThu = this.normalizeSlot(row[slotColMonThu]);
+      const slotFri = (slotColFri !== -1 ? this.normalizeSlot(row[slotColFri]) : null) || slotMonThu;
 
       if (!slotMonThu && !slotFri) return;
 
-      // 1. Procesar Lunes a Jueves
+      // 1. Procesar días Lunes a Jueves
       if (slotMonThu) {
         ['mon', 'tue', 'wed', 'thu'].forEach(day => {
           const docCol = colMap[day].doc;
@@ -822,9 +960,14 @@ const ExcelExport = {
           const curso = row[curCol] ? String(row[curCol]).trim() : '';
 
           if (docente || curso) {
-            if (docente.toUpperCase() === 'DOCENTE' && curso.toUpperCase() === 'CURSO') return;
+            const docUpper = docente.toUpperCase();
+            const curUpper = curso.toUpperCase();
 
-            const isBlocked = docente.toUpperCase().includes('BLOQUEO') || curso.toUpperCase().includes('BLOQUEO');
+            // Omitir cabeceras no deseadas
+            if (docUpper === 'DOCENTE' && curUpper === 'CURSO') return;
+            if (docUpper === 'LUNES' || docUpper === 'MARTES' || docUpper === 'MIERCOLES' || docUpper === 'MIÉRCOLES' || docUpper === 'JUEVES') return;
+
+            const isBlocked = docUpper.includes('BLOQUEO') || curUpper.includes('BLOQUEO');
 
             results.push({
               weekIdx,
@@ -833,13 +976,14 @@ const ExcelExport = {
               docente,
               curso,
               nota: isBlocked ? 'Cargado desde planilla Excel' : '',
-              isBlocked
+              isBlocked,
+              yearMonth: sheetYearMonth || undefined
             });
           }
         });
       }
 
-      // 2. Procesar Viernes
+      // 2. Procesar día Viernes
       if (slotFri) {
         const docCol = colMap.fri.doc;
         const curCol = colMap.fri.cur;
@@ -847,9 +991,13 @@ const ExcelExport = {
         const curso = row[curCol] ? String(row[curCol]).trim() : '';
 
         if (docente || curso) {
-          if (docente.toUpperCase() === 'DOCENTE' && curso.toUpperCase() === 'CURSO') return;
+          const docUpper = docente.toUpperCase();
+          const curUpper = curso.toUpperCase();
 
-          const isBlocked = docente.toUpperCase().includes('BLOQUEO') || curso.toUpperCase().includes('BLOQUEO');
+          if (docUpper === 'DOCENTE' && curUpper === 'CURSO') return;
+          if (docUpper === 'VIERNES') return;
+
+          const isBlocked = docUpper.includes('BLOQUEO') || curUpper.includes('BLOQUEO');
 
           results.push({
             weekIdx,
@@ -858,7 +1006,8 @@ const ExcelExport = {
             docente,
             curso,
             nota: isBlocked ? 'Cargado desde planilla Excel' : '',
-            isBlocked
+            isBlocked,
+            yearMonth: sheetYearMonth || undefined
           });
         }
       }
@@ -869,9 +1018,13 @@ const ExcelExport = {
 
   normalizeSlot(val) {
     if (!val) return null;
-    const clean = String(val).replace(/–/g, '-').replace(/\s+/g, ' ').trim();
+    const clean = String(val)
+      .replace(/–/g, '-')
+      .replace(/(\d{1,2})\.(\d{2})/g, '$1:$2')
+      .replace(/\s+/g, ' ')
+      .trim();
 
-    // Mapeo flexible
+    // Mapeo flexible tolerante a formatos con y sin ceros iniciales
     if ((clean.includes('08:00') || clean.includes('8:00')) && (clean.includes('08:45') || clean.includes('8:45'))) return '08:00 - 08:45';
     if ((clean.includes('08:45') || clean.includes('8:45')) && (clean.includes('09:30') || clean.includes('9:30'))) return '08:45 - 09:30';
     if ((clean.includes('09:30') || clean.includes('9:30')) && clean.includes('10:15')) return '09:30 - 10:15';
@@ -887,7 +1040,7 @@ const ExcelExport = {
     return null;
   },
 
-  renderPreview(reservations, sheetsCount) {
+  renderPreview(reservations, sheetsCount, sheetBreakdown = []) {
     const errBox = document.getElementById('import-error');
     if (errBox) {
       errBox.textContent = '';
@@ -900,14 +1053,26 @@ const ExcelExport = {
     const tbody = document.getElementById('preview-table-body');
     const submitBtn = document.getElementById('import-submit-btn');
 
-    if (countLabel) countLabel.textContent = `✓ ${reservations.length} reservas detectadas con datos`;
-    if (sheetsLabel) sheetsLabel.textContent = `${sheetsCount} hoja(s) procesada(s)`;
+    if (countLabel) {
+      countLabel.textContent = `✓ ${reservations.length} reservas detectadas en ${sheetsCount} pestaña(s)`;
+    }
+
+    if (sheetsLabel) {
+      if (Array.isArray(sheetBreakdown) && sheetBreakdown.length > 0) {
+        const summaryText = sheetBreakdown.map(s => `${s.sheetName} (${s.count})`).join(', ');
+        sheetsLabel.textContent = `${sheetsCount} pestaña(s): ${summaryText}`;
+        sheetsLabel.setAttribute('title', summaryText);
+      } else {
+        sheetsLabel.textContent = `${sheetsCount} pestaña(s) procesada(s)`;
+      }
+    }
 
     if (tbody) {
       tbody.innerHTML = '';
       const dayNames = { mon: 'Lunes', tue: 'Martes', wed: 'Miércoles', thu: 'Jueves', fri: 'Viernes' };
 
-      reservations.slice(0, 15).forEach(r => {
+      // Mostrar muestra balanceada representativa de varias pestañas
+      reservations.slice(0, 20).forEach(r => {
         const tr = document.createElement('tr');
         tr.style.borderBottom = '1px solid var(--border-light)';
         tr.innerHTML = `
@@ -920,11 +1085,11 @@ const ExcelExport = {
         tbody.appendChild(tr);
       });
 
-      if (reservations.length > 15) {
+      if (reservations.length > 20) {
         const trMore = document.createElement('tr');
         trMore.innerHTML = `
           <td colspan="5" style="padding:8px 10px; text-align:center; color:var(--text-muted); font-style:italic;">
-            ... y ${reservations.length - 15} reservas adicionales listas para importar.
+            ... y ${reservations.length - 20} reservas adicionales listas para sincronizar en el calendario.
           </td>
         `;
         tbody.appendChild(trMore);
@@ -934,7 +1099,7 @@ const ExcelExport = {
     if (previewArea) previewArea.style.display = 'block';
     if (submitBtn) {
       submitBtn.disabled = false;
-      submitBtn.textContent = `Confirmar e Importar ${reservations.length} Reservas`;
+      submitBtn.textContent = `Confirmar e Importar ${reservations.length} Reservas (${sheetsCount} pestañas)`;
     }
   },
 
@@ -951,7 +1116,7 @@ const ExcelExport = {
 
     const origText = submitBtn.textContent;
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Importando y guardando en Neon DB...';
+    submitBtn.textContent = 'Importando y guardando reservas...';
 
     if (errBox) {
       errBox.textContent = '';
@@ -968,16 +1133,26 @@ const ExcelExport = {
       const res = await API.batchImportReservas(payload);
 
       this.closeImportModal();
-      showToast(res.message || 'Planilla importada exitosamente.');
+      showToast(res.message || `Planilla importada exitosamente: ${this.parsedReservations.length} reservas.`);
 
-      if (Calendar.currentYearMonth === targetYearMonth) {
-        await Calendar.loadMonth(targetYearMonth);
-      } else {
-        const calMonth = document.getElementById('month-select');
-        const calYear = document.getElementById('year-select');
-        if (calMonth) calMonth.value = month;
-        if (calYear) calYear.value = year;
-        await Calendar.loadMonth(targetYearMonth);
+      // Invalidar caché del mes de destino y de cualquier mes afectado
+      Calendar.invalidateCache(targetYearMonth);
+      if (res.affectedMonths && Array.isArray(res.affectedMonths)) {
+        res.affectedMonths.forEach(m => Calendar.invalidateCache(m));
+      }
+
+      // Sincronizar selectores del calendario principal
+      const calMonth = document.getElementById('month-select');
+      const calYear = document.getElementById('year-select');
+      if (calMonth) calMonth.value = month;
+      if (calYear) calYear.value = year;
+
+      await Calendar.loadMonth(targetYearMonth);
+
+      // Si la primera semana importada no es la semana 0 (ej: empezó en Semana 2), enfocarla inmediatamente
+      if (this.firstImportedWeek !== undefined && this.firstImportedWeek >= 0) {
+        Calendar.currentWeek = this.firstImportedWeek;
+        Calendar.render();
       }
     } catch (err) {
       console.error('Error en executeImport:', err);

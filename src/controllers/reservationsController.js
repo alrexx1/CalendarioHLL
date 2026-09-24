@@ -371,82 +371,134 @@ async function batchImportReservas(req, res) {
     }
 
     const pool = db.getPool();
-    if (!pool || !db.isNeonConnected()) {
-      return res.status(500).json({
-        success: false,
-        message: 'Base de datos no disponible.'
-      });
+    const neonAvailable = pool && db.isNeonConnected();
+    let count = 0;
+
+    // Recopilar todos los yearMonth afectados (por si vienen pestañas de distintos meses)
+    const affectedMonths = new Set();
+    affectedMonths.add(yearMonth);
+    reservations.forEach(r => {
+      if (r.yearMonth) affectedMonths.add(r.yearMonth);
+    });
+
+    if (neonAvailable) {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        // Si el modo es 'replace', limpiamos los meses especificados antes de cargar
+        if (mode === 'replace') {
+          for (const ym of affectedMonths) {
+            await client.query('DELETE FROM reservas WHERE year_month = $1;', [ym]);
+          }
+        }
+
+        for (const item of reservations) {
+          const { weekIdx, day, slot, docente, curso, nota, isBlocked, userEmail } = item;
+          const targetYM = item.yearMonth || yearMonth;
+
+          if (weekIdx === undefined || !day || !slot) continue;
+          if (!docente && !curso && !isBlocked) continue; // omitir vacíos
+
+          const normalizedDay = day.toLowerCase().trim();
+          const effectiveDocente = (docente || (isBlocked ? '🔒 ADMIN' : '')).trim();
+          const effectiveCurso = (curso || (isBlocked ? 'Bloqueo Institucional' : '')).trim();
+          const effectiveEmail = (userEmail || req.user?.email || '').toLowerCase().trim();
+
+          const query = `
+            INSERT INTO reservas (year_month, week_idx, day, slot, docente, curso, nota, is_blocked, user_email, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
+            ON CONFLICT (year_month, week_idx, day, slot)
+            DO UPDATE SET
+              docente = EXCLUDED.docente,
+              curso = EXCLUDED.curso,
+              nota = EXCLUDED.nota,
+              is_blocked = EXCLUDED.is_blocked,
+              user_email = EXCLUDED.user_email,
+              updated_at = CURRENT_TIMESTAMP;
+          `;
+
+          await client.query(query, [
+            targetYM,
+            parseInt(weekIdx, 10),
+            normalizedDay,
+            slot.trim(),
+            effectiveDocente,
+            effectiveCurso,
+            (nota || '').trim(),
+            Boolean(isBlocked),
+            effectiveEmail
+          ]);
+          count++;
+        }
+
+        await client.query('COMMIT');
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
     }
 
-    const client = await pool.connect();
+    // Sincronizar siempre con almacenamiento local JSON (como respaldo y fallback offline)
     try {
-      await client.query('BEGIN');
-
-      // Si el modo es 'replace', limpiamos el mes especificado antes de cargar
-      if (mode === 'replace') {
-        await client.query('DELETE FROM reservas WHERE year_month = $1;', [yearMonth]);
+      const localDb = db.getLocalJson();
+      for (const ym of affectedMonths) {
+        if (mode === 'replace' || !localDb[ym]) {
+          localDb[ym] = [];
+        }
       }
 
-      let count = 0;
       for (const item of reservations) {
         const { weekIdx, day, slot, docente, curso, nota, isBlocked, userEmail } = item;
+        const targetYM = item.yearMonth || yearMonth;
 
         if (weekIdx === undefined || !day || !slot) continue;
-        if (!docente && !curso && !isBlocked) continue; // omitir vacíos
+        if (!docente && !curso && !isBlocked) continue;
 
-        const normalizedDay = day.toLowerCase().trim();
+        if (!localDb[targetYM]) localDb[targetYM] = [];
+        const w = parseInt(weekIdx, 10);
+        while (localDb[targetYM].length <= w) localDb[targetYM].push({});
+        if (!localDb[targetYM][w][day]) localDb[targetYM][w][day] = {};
+
         const effectiveDocente = (docente || (isBlocked ? '🔒 ADMIN' : '')).trim();
         const effectiveCurso = (curso || (isBlocked ? 'Bloqueo Institucional' : '')).trim();
         const effectiveEmail = (userEmail || req.user?.email || '').toLowerCase().trim();
 
-        const query = `
-          INSERT INTO reservas (year_month, week_idx, day, slot, docente, curso, nota, is_blocked, user_email, updated_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
-          ON CONFLICT (year_month, week_idx, day, slot)
-          DO UPDATE SET
-            docente = EXCLUDED.docente,
-            curso = EXCLUDED.curso,
-            nota = EXCLUDED.nota,
-            is_blocked = EXCLUDED.is_blocked,
-            user_email = EXCLUDED.user_email,
-            updated_at = CURRENT_TIMESTAMP;
-        `;
+        localDb[targetYM][w][day][slot] = {
+          docente: effectiveDocente,
+          curso: effectiveCurso,
+          nota: (nota || '').trim(),
+          isBlocked: Boolean(isBlocked),
+          userEmail: effectiveEmail
+        };
 
-        await client.query(query, [
-          yearMonth,
-          parseInt(weekIdx, 10),
-          normalizedDay,
-          slot.trim(),
-          effectiveDocente,
-          effectiveCurso,
-          (nota || '').trim(),
-          Boolean(isBlocked),
-          effectiveEmail
-        ]);
-        count++;
+        if (!neonAvailable) {
+          count++;
+        }
       }
 
-      await client.query('COMMIT');
-
-      console.log(`📥 [Importación Excel] ${count} reservas procesadas para ${yearMonth} (modo: ${mode || 'merge'}) por ${req.user?.email}`);
-
-      return res.json({
-        success: true,
-        message: `Planilla procesada con éxito. Se importaron ${count} reservas para el mes ${yearMonth}.`,
-        count,
-        yearMonth
-      });
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw err;
-    } finally {
-      client.release();
+      db.saveLocalJson(localDb);
+    } catch (localErr) {
+      console.warn('⚠️ No se pudo sincronizar reservas.json localmente tras importación:', localErr.message);
     }
+
+    const storageSource = neonAvailable ? 'Neon PostgreSQL y respaldo JSON' : 'Almacenamiento Local (JSON)';
+    console.log(`📥 [Importación Excel] ${count} reservas procesadas para [${Array.from(affectedMonths).join(', ')}] (modo: ${mode || 'merge'}, destino: ${storageSource}) por ${req.user?.email || 'Admin'}`);
+
+    return res.json({
+      success: true,
+      message: `Planilla procesada con éxito. Se importaron ${count} reservas en ${storageSource}.`,
+      count,
+      yearMonth,
+      affectedMonths: Array.from(affectedMonths)
+    });
   } catch (err) {
     console.error('Error en batchImportReservas:', err.message);
     return res.status(500).json({
       success: false,
-      message: 'Error interno al importar reservas desde Excel.'
+      message: 'Error interno al importar reservas desde Excel: ' + (err.message || 'Error desconocido')
     });
   }
 }
